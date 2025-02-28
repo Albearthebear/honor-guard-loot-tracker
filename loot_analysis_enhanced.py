@@ -45,6 +45,24 @@ class DragonSoulLootAnalyzer:
             'Ifbbathlete', 'Andrewd', 'Rewolut', 'Corwor', 'anotherpug'
         ]
         
+        # Debug configuration
+        self.debug_config = {
+            'enabled': True,
+            'players': ['ricardo', 'bestdk', 'borran', 'moruse', 'ooverdeath', 'albear'],
+            'item_categories': {
+                'madness_weapons': True,
+                'other_weapons': True,
+                'trinkets': True,
+                'armor': True,
+                'jewelry': True
+            },
+            'show_attendance': True,
+            'show_loot_per_boss': True,
+            'show_item_slots': True,
+            'show_priority_calculation': True,
+            'verbose_item_classification': False
+        }
+        
         # Dragon Soul has 8 bosses total
         self.total_bosses = 8
         
@@ -132,9 +150,9 @@ class DragonSoulLootAnalyzer:
             # Lowest value slots (1.0)
             'neck': 1.0,       # Necklaces, amulets
             'finger': 1.0,     # Rings
-            'back': 1.0,       # Cloaks, capes
+            'back': 1.2,       # Cloaks, capes
             'ranged': 1.0,     # Ranged weapons, wands, thrown
-            'off-hand': 1.0,   # Off-hand items, shields
+            'off-hand': 1.2,   # Off-hand items, shields
         }
         
         # Keywords to identify item slots
@@ -639,16 +657,18 @@ class DragonSoulLootAnalyzer:
     def get_loot_priority_recommendations(self, attendance, loot_per_boss):
         """Generate loot priority recommendations based on attendance and loot per boss"""
         # Debug attendance for key players
-        debug_players = ['ricardo', 'bestdk', 'borran', 'moruse', 'ooverdeath', 'albear']
-        for player in debug_players:
-            if player in attendance:
-                print(f"  {player}: {attendance[player]:.1f}%")
+        if self.debug_config['show_attendance']:
+            print("\nAttendance for key players:")
+            for player in self.debug_config['players']:
+                if player in attendance:
+                    print(f"  {player}: {attendance[player]:.1f}%")
         
         # Print loot per boss for key players
-        print("\nLoot per boss:")
-        for player in sorted(loot_per_boss.keys(), key=lambda x: loot_per_boss[x]):
-            if player in loot_per_boss:
-                print(f"  {player}: {loot_per_boss[player]:.4f} ({self.player_loot_count.get(player, 0)} items / {self.player_boss_attendance.get(player, 0)} bosses)")
+        if self.debug_config['show_loot_per_boss']:
+            print("\nLoot per boss:")
+            for player in sorted(loot_per_boss.keys(), key=lambda x: loot_per_boss[x]):
+                if player in loot_per_boss:
+                    print(f"  {player}: {loot_per_boss[player]:.4f} ({self.player_loot_count.get(player, 0)} items / {self.player_boss_attendance.get(player, 0)} bosses)")
         
         # Priority formula that considers:
         # 1. Boss attendance (higher = better)
@@ -665,9 +685,6 @@ class DragonSoulLootAnalyzer:
             all_known_players.remove('overdeath')
             print("Removed 'overdeath' from known players as 'ooverdeath' is present")
         
-        # Debug players to show detailed calculations for
-        debug_players = ['ricardo', 'bestdk', 'borran', 'moruse', 'ooverdeath', 'albear']
-        
         for player in all_known_players:
             if player in self.player_boss_attendance and not self.is_pug(player):
                 # Base priority comes from attendance
@@ -680,7 +697,7 @@ class DragonSoulLootAnalyzer:
                 player_token = self.player_info.get(player, {}).get('Token', 'Unknown')
                 
                 # Print item slots for debugging
-                if player in debug_players:
+                if self.debug_config['show_item_slots'] and player in self.debug_config['players']:
                     print(f"\nItem slots for {player}:")
                     for slot, count in self.player_item_slots[player].items():
                         print(f"  {slot}: {count} items")
@@ -718,7 +735,7 @@ class DragonSoulLootAnalyzer:
                             regular_item_penalty += weighted_slot_penalty
                         
                         # Debug output for specific players
-                        if player in debug_players:
+                        if self.debug_config['show_priority_calculation'] and player in self.debug_config['players']:
                             slot_type = "token" if is_token_slot else "regular"
                             print(f"  - {slot} penalty ({slot_type}): {count}/{bosses_attended} * {self.item_penalty_multiplier} * {slot_multiplier} = {weighted_slot_penalty:.2f}")
                 
@@ -738,7 +755,7 @@ class DragonSoulLootAnalyzer:
                 token_priority_scores[player] = token_score
                 
                 # Add explanation for specific players for debugging
-                if player in debug_players:
+                if self.debug_config['show_priority_calculation'] and player in self.debug_config['players']:
                     print(f"\nPriority calculation for {player}:")
                     print(f"  Attendance: {attendance.get(player, 0):.1f}% × {self.attendance_weight} = {attendance_score:.1f}")
                     
@@ -1040,140 +1057,348 @@ class DragonSoulLootAnalyzer:
         # Default to a generic slot if we can't determine it
         return 'unknown'
 
+    def verify_all_items_classification(self, items_list):
+        """
+        Verify that all items in the provided list are properly classified.
+        Returns a list of items that couldn't be classified (unknown slot).
+        """
+        if not self.debug_config['enabled']:
+            return []
+            
+        print("\nVERIFYING CLASSIFICATION FOR ALL ITEMS:")
+        print("-" * 60)
+        
+        # Group items by category for better organization
+        categorized_items = {
+            'Madness Weapons': [],
+            'Other Weapons': [],
+            'Trinkets': [],
+            'Armor': [],
+            'Jewelry': [],
+            'Tokens': [],
+            'Other': []
+        }
+        
+        # Categorize items
+        for item in items_list:
+            item_lower = item.lower()
+            
+            # Check if it's a madness weapon
+            if any(madness_name in item_lower for madness_name in [
+                'vishanka', 'jaws of the earth', 'rathrak', 'poisonous mind', 
+                'gurthalak', 'voice of the deeps', 'ti\'tahk', 'steps of time',
+                'kiril', 'fury of beasts', 'souldrinker', 'no\'kaled', 'elements of death',
+                'blade of the unmaker', 'maw of the dragonlord'
+            ]):
+                categorized_items['Madness Weapons'].append(item)
+            # Check if it's a token
+            elif 'corrupted' in item_lower and any(token in item for token in ['Vanquisher', 'Conqueror', 'Protector']):
+                categorized_items['Tokens'].append(item)
+            # Check if it's a trinket
+            elif any(keyword in item_lower for keyword in self.slot_keywords['trinket']):
+                categorized_items['Trinkets'].append(item)
+            # Check if it's a weapon
+            elif any(keyword in item_lower for keyword in self.weapon_keywords):
+                categorized_items['Other Weapons'].append(item)
+            # Check if it's jewelry
+            elif any(keyword in item_lower for keyword in self.jewelry_keywords):
+                categorized_items['Jewelry'].append(item)
+            # Check if it's armor
+            elif any(keyword in item_lower for keyword in [
+                'helm', 'hood', 'crown', 'shoulder', 'spaulder', 'chest', 'robe', 'wrist', 'bracer',
+                'glove', 'gauntlet', 'belt', 'waist', 'leg', 'pant', 'boot', 'feet', 'treads'
+            ]):
+                categorized_items['Armor'].append(item)
+            else:
+                categorized_items['Other'].append(item)
+        
+        # Debug each category
+        all_unknown_items = []
+        for category, items in categorized_items.items():
+            if items:  # Only process non-empty categories
+                results = self.debug_item_classification(items, category)
+                unknown_items = [r['item'] for r in results if r['slot'] == 'unknown']
+                all_unknown_items.extend(unknown_items)
+        
+        # Print classification summary
+        print("\nCLASSIFICATION SUMMARY:")
+        total_items = len(items_list)
+        classified_items = total_items - len(all_unknown_items)
+        print(f"  Total items: {total_items}")
+        print(f"  Successfully classified: {classified_items} ({classified_items/total_items*100:.1f}%)")
+        print(f"  Unclassified: {len(all_unknown_items)} ({len(all_unknown_items)/total_items*100:.1f}%)")
+        
+        if all_unknown_items:
+            print("\nUNCLASSIFIED ITEMS:")
+            for item in all_unknown_items:
+                print(f"  - {item}")
+        else:
+            print("\nSUCCESS: All items were successfully classified!")
+        
+        return all_unknown_items
+
+    def verify_item_classification(self, item_name):
+        """
+        Verify the classification of a single item and return detailed information.
+        
+        Args:
+            item_name: The name of the item to classify
+            
+        Returns:
+            dict: A dictionary containing classification details
+        """
+        item_name_lower = item_name.lower()
+        slot = self.determine_item_slot(item_name)
+        
+        # Check if it's in specific mappings
+        in_specific_mappings = item_name_lower in self.specific_item_mappings
+        
+        # Check if it's a token
+        token, token_slot = self.extract_token_info(item_name)
+        is_token = token is not None
+        
+        # Check if it's a weapon
+        is_weapon = False
+        weapon_type = None
+        for wtype, keywords in self.weapon_types.items():
+            if any(keyword in item_name_lower for keyword in keywords):
+                is_weapon = True
+                weapon_type = wtype
+                break
+        
+        # Check if it's jewelry
+        is_jewelry = any(keyword in item_name_lower for keyword in self.jewelry_keywords)
+        
+        # Determine classification method
+        classification_method = "unknown"
+        if in_specific_mappings:
+            classification_method = "specific_mapping"
+        elif is_token and token_slot != 'unknown':
+            classification_method = "token"
+        elif is_weapon:
+            classification_method = "weapon_keywords"
+        elif slot != 'unknown':
+            classification_method = "slot_keywords"
+            
+        return {
+            'item': item_name,
+            'slot': slot,
+            'in_specific_mappings': in_specific_mappings,
+            'is_token': is_token,
+            'token_type': token,
+            'token_slot': token_slot,
+            'is_weapon': is_weapon,
+            'weapon_type': weapon_type,
+            'is_jewelry': is_jewelry,
+            'classification_method': classification_method
+        }
+
+    def debug_item_classification(self, items_list, category_name=None):
+        """
+        Debug the classification of a list of items.
+        
+        Args:
+            items_list: List of item names to classify
+            category_name: Optional name of the category for display purposes
+        """
+        if not self.debug_config['enabled']:
+            return
+            
+        if category_name:
+            print(f"\n{category_name}:")
+        
+        results = []
+        unknown_items = []
+        
+        for item in items_list:
+            classification = self.verify_item_classification(item)
+            results.append(classification)
+            
+            if classification['slot'] == 'unknown':
+                unknown_items.append(item)
+            
+            # Print basic or verbose output based on configuration
+            if self.debug_config['verbose_item_classification']:
+                print(f"  {item}:")
+                print(f"    Slot: {classification['slot']}")
+                print(f"    Method: {classification['classification_method']}")
+                if classification['is_token']:
+                    print(f"    Token: {classification['token_type']} ({classification['token_slot']})")
+                if classification['is_weapon']:
+                    print(f"    Weapon Type: {classification['weapon_type']}")
+            else:
+                print(f"  {item} -> {classification['slot']}")
+        
+        # Print summary
+        if unknown_items:
+            print(f"  WARNING: {len(unknown_items)} items could not be classified:")
+            for item in unknown_items:
+                print(f"    - {item}")
+        
+        return results
+
+    def update_specific_item_mappings(self):
+        """
+        Update specific item mappings with commonly unclassified items.
+        This method adds mappings for items that are frequently not classified correctly.
+        """
+        # Add trinket mappings
+        trinket_mappings = {
+            'cunning of the cruel': 'trinket',
+            'indomitable pride': 'trinket',
+            'soulshifter vortex': 'trinket',
+            'creche of the final dragon': 'trinket',
+            'starcatcher compass': 'trinket',
+            'eye of unmaking': 'trinket',
+            'heart of unliving': 'trinket',
+            'resolve of undying': 'trinket',
+            'will of unbinding': 'trinket',
+            'wrath of unchaining': 'trinket',
+            'insignia of the corrupted mind': 'trinket',
+            'seal of the seven signs': 'trinket'
+        }
+        
+        # Add jewelry mappings
+        jewelry_mappings = {
+            'petrified fungal heart': 'neck',
+            'curled twilight claw': 'finger',
+            'ring of the riven': 'finger',
+            'signet of grasping mouths': 'finger'
+        }
+        
+        # Add armor mappings
+        armor_mappings = {
+            'imperfect specimens 27 and 28': 'shoulder',
+            'nightblind cinch': 'waist',
+            'interrogator\'s bloody footpads': 'feet',
+            'mindstrainer treads': 'feet',
+            'heartblood wristplates': 'wrist',
+            'treads of sordid screams': 'feet',
+            'bracers of looming darkness': 'wrist',
+            'janglespur jackboots': 'feet',
+            'shadow wing armbands': 'wrist',
+            'belt of the beloved companion': 'waist',
+            'goriona\'s collar': 'waist',
+            'gloves of liquid smoke': 'hands',
+            'molten blood footpads': 'feet',
+            'belt of shattered elementium': 'waist',
+            'backbreaker spaulders': 'shoulder',
+            'gauntlets of the golden thorn': 'hands'
+        }
+        
+        # Update the specific item mappings
+        self.specific_item_mappings.update(trinket_mappings)
+        self.specific_item_mappings.update(jewelry_mappings)
+        self.specific_item_mappings.update(armor_mappings)
+        
+        # Print update summary if debug is enabled
+        if self.debug_config['enabled']:
+            print("\nUpdated specific item mappings:")
+            print(f"  Added {len(trinket_mappings)} trinket mappings")
+            print(f"  Added {len(jewelry_mappings)} jewelry mappings")
+            print(f"  Added {len(armor_mappings)} armor mappings")
+            print(f"  Total specific mappings: {len(self.specific_item_mappings)}")
+
 if __name__ == "__main__":
     analyzer = DragonSoulLootAnalyzer()
     
-    # Debug item slot detection
-    print("\nDEBUG ITEM SLOT DETECTION:")
+    # Update specific item mappings to improve classification
+    analyzer.update_specific_item_mappings()
     
-    # Test Madness weapons
-    madness_weapons = [
-        "Vishanka, Jaws of the Earth",
-        "Rathrak, the Poisonous Mind",
-        "Gurthalak, Voice of the Deeps",
-        "Ti'tahk, the Steps of Time",
-        "Kiril, Fury of Beasts",
-        "Souldrinker",
-        "No'Kaled, the Elements of Death",
-        "Blade of the Unmaker",
-        "Maw of the Dragonlord"
+    # Define item categories for testing
+    item_categories = {
+        'Madness Weapons': [
+            "Vishanka, Jaws of the Earth", "Rathrak, the Poisonous Mind", 
+            "Gurthalak, Voice of the Deeps", "Ti'tahk, the Steps of Time",
+            "Kiril, Fury of Beasts", "Souldrinker", "No'Kaled, the Elements of Death",
+            "Blade of the Unmaker", "Maw of the Dragonlord"
+        ],
+        'Other Weapons': [
+            "Hand of Morchok", "Vagaries of Time", "Razor Saronite Chip",
+            "Finger of Zon'ozz", "Horrifying Horn Arbalest", "Scalpel of Unrelenting Agony",
+            "Spire of Coagulated Globules", "Experimental Specimen Slicer",
+            "Electrowing Dagger", "Lightning Rod", "Morningstar of Heroic Will",
+            "Ledger of Revolting Rituals", "Ataraxis, Cudgel of the Warmaster",
+            "Visage of the Destroyer", "Blackhorn's Mighty Bulwark",
+            "Timepiece of the Bronze Flight", "Ruinblaster Shotgun",
+            "Spine of the Thousand Cuts", "Dragonfire Orb"
+        ],
+        'Trinkets': [
+            "Bone-Link Fetish", "Cunning of the Cruel", "Indomitable Pride",
+            "Vial of Shadows", "Windward Heart", "Seal of the Seven Signs",
+            "Insignia of the Corrupted Mind", "Soulshifter Vortex",
+            "Creche of the Final Dragon", "Starcatcher Compass",
+            "Eye of Unmaking", "Heart of Unliving", "Resolve of Undying",
+            "Will of Unbinding", "Wrath of Unchaining"
+        ],
+        'Armor': [
+            "Mosswrought Shoulderguards", "Robe of Glowing Stone",
+            "Mycosynth Wristguards", "Underdweller's Spaulders",
+            "Girdle of Shattered Stone", "Sporebeard Gauntlets",
+            "Brackenshell Shoulderplates", "Pillarfoot Greaves",
+            "Rockhide Bracers", "Cord of the Slain Champion",
+            "Belt of Flayed Skin", "Grotesquely Writhing Bracers",
+            "Graveheart Bracers", "Treads of Crushed Flesh",
+            "Bracers of the Banished", "Girdle of the Grotesque",
+            "Treads of Dormant Dreams", "Runescriven Demon Collar",
+            "Treads of Sordid Screams", "Bracers of Looming Darkness",
+            "Imperfect Specimens 27 and 28", "Dragonfracture Belt",
+            "Stillheart Warboots", "Janglespur Jackboots",
+            "Shadow Wing Armbands", "Belt of the Beloved Companion",
+            "Goriona's Collar", "Gloves of Liquid Smoke",
+            "Molten Blood Footpads", "Belt of Shattered Elementium",
+            "Backbreaker Spaulders", "Gauntlets of the Golden Thorn"
+        ],
+        'Jewelry': [
+            "Petrified Fungal Heart", "Breathstealer Band", "Hardheart Ring",
+            "Infinite Loop", "Seal of Primordial Shadow", "Signet of Suturing",
+            "Ring of the Riven", "Signet of Grasping Mouths", "Curled Twilight Claw"
+        ]
+    }
+    
+    # Comprehensive list of Dragon Soul items
+    dragon_soul_items = []
+    for category, items in item_categories.items():
+        dragon_soul_items.extend(items)
+    
+    # Add BoE items
+    boe_items = [
+        "Sash of Relentless Truth", "Nightblind Cinch", "Girdle of Fungal Dreams",
+        "Dragoncarver Belt", "Belt of Ghostly Graces", "Girdle of Soulful Mending",
+        "Waistguard of Bleeding Bone", "Waistplate of the Desecrated Future"
     ]
+    dragon_soul_items.extend(boe_items)
     
-    print("\nMadness Weapons:")
-    for weapon in madness_weapons:
-        slot = analyzer.determine_item_slot(weapon)
-        print(f"  {weapon} -> {slot}")
-    
-    # Test other weapons
-    other_weapons = [
-        "Hand of Morchok",
-        "Vagaries of Time",
-        "Razor Saronite Chip",
-        "Finger of Zon'ozz",
-        "Horrifying Horn Arbalest",
-        "Scalpel of Unrelenting Agony",
-        "Spire of Coagulated Globules",
-        "Experimental Specimen Slicer",
-        "Electrowing Dagger",
-        "Lightning Rod",
-        "Morningstar of Heroic Will",
-        "Ledger of Revolting Rituals",
-        "Ataraxis, Cudgel of the Warmaster",
-        "Visage of the Destroyer",
-        "Blackhorn's Mighty Bulwark",
-        "Timepiece of the Bronze Flight",
-        "Ruinblaster Shotgun",
-        "Spine of the Thousand Cuts",
-        "Dragonfire Orb"
+    # Add additional items
+    additional_items = [
+        "Interrogator's Bloody Footpads", "Mindstrainer Treads", "Heartblood Wristplates"
     ]
+    dragon_soul_items.extend(additional_items)
     
-    print("\nOther Weapons:")
-    for weapon in other_weapons:
-        slot = analyzer.determine_item_slot(weapon)
-        print(f"  {weapon} -> {slot}")
+    print("\nDEBUG ITEM CLASSIFICATION SYSTEM")
+    print("=" * 40)
     
-    # Test trinkets
-    trinkets = [
-        "Bone-Link Fetish",
-        "Cunning of the Cruel",
-        "Indomitable Pride",
-        "Vial of Shadows",
-        "Windward Heart",
-        "Seal of the Seven Signs",
-        "Insignia of the Corrupted Mind",
-        "Soulshifter Vortex",
-        "Creche of the Final Dragon",
-        "Starcatcher Compass",
-        "Eye of Unmaking",
-        "Heart of Unliving",
-        "Resolve of Undying",
-        "Will of Unbinding",
-        "Wrath of Unchaining"
-    ]
-    
-    print("\nTrinkets:")
-    for trinket in trinkets:
-        slot = analyzer.determine_item_slot(trinket)
-        print(f"  {trinket} -> {slot}")
-    
-    # Test armor pieces
-    armor_pieces = [
-        "Mosswrought Shoulderguards",
-        "Robe of Glowing Stone",
-        "Mycosynth Wristguards",
-        "Underdweller's Spaulders",
-        "Girdle of Shattered Stone",
-        "Sporebeard Gauntlets",
-        "Brackenshell Shoulderplates",
-        "Pillarfoot Greaves",
-        "Rockhide Bracers",
-        "Cord of the Slain Champion",
-        "Belt of Flayed Skin",
-        "Grotesquely Writhing Bracers",
-        "Graveheart Bracers",
-        "Treads of Crushed Flesh",
-        "Bracers of the Banished",
-        "Girdle of the Grotesque",
-        "Treads of Dormant Dreams",
-        "Runescriven Demon Collar",
-        "Treads of Sordid Screams",
-        "Bracers of Looming Darkness",
-        "Imperfect Specimens 27 and 28",
-        "Dragonfracture Belt",
-        "Stillheart Warboots",
-        "Janglespur Jackboots",
-        "Shadow Wing Armbands",
-        "Belt of the Beloved Companion",
-        "Goriona's Collar",
-        "Gloves of Liquid Smoke",
-        "Molten Blood Footpads",
-        "Belt of Shattered Elementium",
-        "Backbreaker Spaulders",
-        "Gauntlets of the Golden Thorn"
-    ]
-    
-    print("\nArmor Pieces:")
-    for armor in armor_pieces:
-        slot = analyzer.determine_item_slot(armor)
-        print(f"  {armor} -> {slot}")
-    
-    # Test jewelry
-    jewelry = [
-        "Petrified Fungal Heart",
-        "Breathstealer Band",
-        "Hardheart Ring",
-        "Infinite Loop",
-        "Seal of Primordial Shadow",
-        "Signet of Suturing",
-        "Ring of the Riven",
-        "Signet of Grasping Mouths",
-        "Curled Twilight Claw"
-    ]
-    
-    print("\nJewelry:")
-    for item in jewelry:
-        slot = analyzer.determine_item_slot(item)
-        print(f"  {item} -> {slot}")
+    # Test the debug system with different configurations
+    if analyzer.debug_config['enabled']:
+        # Option 1: Test all items at once
+        if analyzer.debug_config['item_categories']['madness_weapons']:
+            analyzer.debug_item_classification(item_categories['Madness Weapons'], "Madness Weapons")
+            
+        if analyzer.debug_config['item_categories']['other_weapons']:
+            analyzer.debug_item_classification(item_categories['Other Weapons'], "Other Weapons")
+            
+        if analyzer.debug_config['item_categories']['trinkets']:
+            analyzer.debug_item_classification(item_categories['Trinkets'], "Trinkets")
+            
+        if analyzer.debug_config['item_categories']['armor']:
+            analyzer.debug_item_classification(item_categories['Armor'], "Armor")
+            
+        if analyzer.debug_config['item_categories']['jewelry']:
+            analyzer.debug_item_classification(item_categories['Jewelry'], "Jewelry")
+        
+        # Option 2: Verify all items at once
+        print("\nTesting comprehensive verification:")
+        analyzer.verify_all_items_classification(dragon_soul_items)
     
     # Run the full analysis
     print("\n")
