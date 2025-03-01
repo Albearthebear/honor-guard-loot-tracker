@@ -1,8 +1,9 @@
 import pandas as pd
 import os
-import re
 from collections import defaultdict, Counter
 import unicodedata
+import csv
+from datetime import datetime
 
 class DragonSoulLootAnalyzer:
     """
@@ -47,20 +48,7 @@ class DragonSoulLootAnalyzer:
         
         # Debug configuration
         self.debug_config = {
-            'enabled': True,
-            'players': ['ricardo', 'bestdk', 'borran', 'moruse', 'ooverdeath', 'albear'],
-            'item_categories': {
-                'madness_weapons': True,
-                'other_weapons': True,
-                'trinkets': True,
-                'armor': True,
-                'jewelry': True
-            },
-            'show_attendance': True,
-            'show_loot_per_boss': True,
-            'show_item_slots': True,
-            'show_priority_calculation': True,
-            'verbose_item_classification': False
+            'enabled': False
         }
         
         # Dragon Soul has 8 bosses total
@@ -109,20 +97,16 @@ class DragonSoulLootAnalyzer:
         self.healers = set()
         
         # Priority calculation weights - TWEAKABLE VARIABLES
-        self.attendance_weight = 0.4         # How much attendance affects priority score
-        self.item_penalty_multiplier = 40    # Base multiplier for item penalties
-        self.token_penalty_reduction = 0.5   # Tokens count as 50% of a regular item for penalties
-        self.raid_25_percent_bonus = 0.25    # 25% bonus for 25-man raid attendance
+        self.attendance_weight = 0.55     # How much attendance affects priority score
+        self.item_penalty_multiplier = 55    # Base multiplier for item penalties
+        self.token_penalty_reduction = 0.75   # Tokens count as 50% of a regular item for penalties
+        self.raid_25_percent_bonus = 0   # 25% bonus for 25-man raid attendance
         
         # Initialize item categorization system
         self.initialize_item_categorization()
         
         # Track item slots received by players
         self.player_item_slots = defaultdict(lambda: defaultdict(int))
-        
-        # Track item types received by players
-        self.player_jewelry_count = defaultdict(int)
-        self.player_weapon_count = defaultdict(int)
         
     def initialize_item_categorization(self):
         """Initialize a comprehensive item categorization system based on Dragon Soul loot"""
@@ -155,55 +139,6 @@ class DragonSoulLootAnalyzer:
             'off-hand': 1.2,   # Off-hand items, shields
         }
         
-        # Keywords to identify item slots
-        self.slot_keywords = {
-            'head': ['helm', 'hood', 'crown', 'cowl', 'headpiece'],
-            'shoulder': ['shoulder', 'spaulder', 'mantle', 'amice'],
-            'chest': ['chest', 'robe', 'tunic', 'hauberk', 'breastplate'],
-            'wrist': ['wrist', 'bracer', 'vambrace'],
-            'hands': ['glove', 'gauntlet', 'handguard', 'hand'],
-            'waist': ['belt', 'waist', 'girdle', 'cord', 'sash'],
-            'legs': ['leg', 'pant', 'kilt', 'legging', 'greave'],
-            'feet': ['boot', 'treads', 'foot', 'sandal', 'shoe', 'sabatons'],
-            'neck': ['neck', 'necklace', 'amulet', 'choker', 'collar'],
-            'finger': ['ring', 'band', 'seal', 'signet', 'loop'],
-            'back': ['cloak', 'cape', 'drape'],
-            'ranged': ['wand', 'thrown', 'gun', 'bow', 'crossbow', 'arrow', 'bullet'],
-            'off-hand': ['off-hand', 'shield', 'defender', 'bulwark', 'ward'],
-            'trinket': ['trinket', 'charm', 'fetish', 'idol', 'totem', 'insignia', 'vial']
-        }
-        
-        # Weapon types with their keywords
-        self.weapon_types = {
-            'one_hand_sword': ['sword', 'blade', 'souldrinker'],
-            'one_hand_axe': ['axe', 'no\'kaled', 'elements of death', 'hand of morchok'],
-            'one_hand_mace': ['mace', 'morningstar', 'maw of the dragonlord'],
-            'two_hand_sword': ['greatsword', 'two-handed sword', 'gurthalak', 'voice of the deeps'],
-            'two_hand_axe': ['greataxe', 'two-handed axe', 'experimental specimen slicer'],
-            'two_hand_mace': ['hammer', 'maul', 'two-handed mace', 'ataraxis', 'cudgel of the warmaster'],
-            'dagger': ['dagger', 'knife', 'kris', 'dirk', 'blade of the unmaker', 'rathrak', 'poisonous mind', 'electrowing dagger', 'scalpel of unrelenting agony'],
-            'fist': ['fist', 'claw', 'knuckle'],
-            'polearm': ['polearm', 'halberd', 'pike', 'kiril', 'fury of beasts'],
-            'staff': ['staff', 'ti\'tahk', 'steps of time', 'lightning rod', 'spire of coagulated globules', 'visage of the destroyer'],
-            'bow': ['bow', 'vishanka', 'jaws of the earth'],
-            'crossbow': ['crossbow', 'horrifying horn arbalest'],
-            'gun': ['gun', 'rifle', 'shotgun', 'ruinblaster shotgun'],
-            'wand': ['wand', 'finger of zon\'ozz'],
-            'thrown': ['thrown', 'razor saronite chip'],
-            'shield': ['shield', 'blackhorn\'s mighty bulwark', 'timepiece of the bronze flight'],
-            'off_hand': ['off-hand', 'held in off-hand', 'dragonfire orb', 'ledger of revolting rituals']
-        }
-        
-        # Combine all weapon keywords for general weapon detection
-        self.weapon_keywords = []
-        for weapon_type, keywords in self.weapon_types.items():
-            self.weapon_keywords.extend(keywords)
-        
-        # Jewelry keywords
-        self.jewelry_keywords = []
-        for slot in ['neck', 'finger', 'trinket']:
-            self.jewelry_keywords.extend(self.slot_keywords[slot])
-        
         # Token slot importance by token type
         self.token_slot_importance = {
             'Vanquisher': {  # DKs, Druids, Mages, Rogues
@@ -228,57 +163,118 @@ class DragonSoulLootAnalyzer:
                 'legs': 1.5
             }
         }
-        
-        # Specific item mappings for items that might be hard to categorize automatically
-        self.specific_item_mappings = {
-            # Madness weapons
-            'vishanka, jaws of the earth': 'bow',
-            'rathrak, the poisonous mind': 'dagger',
-            'gurthalak, voice of the deeps': 'two_hand_sword',
-            'ti\'tahk, the steps of time': 'staff',
-            'kiril, fury of beasts': 'polearm',
-            'souldrinker': 'one_hand_sword',
-            'no\'kaled, the elements of death': 'one_hand_axe',
-            'blade of the unmaker': 'dagger',
-            'maw of the dragonlord': 'one_hand_mace',
+
+        # Manual mapping for token items
+        self.token_mapping = {
+            'crown of the corrupted protector': ('Protector', 'head'),
+            'shoulders of the corrupted protector': ('Protector', 'shoulder'),
+            'chest of the corrupted protector': ('Protector', 'chest'),
+            'gauntlets of the corrupted protector': ('Protector', 'hands'),
+            'leggings of the corrupted protector': ('Protector', 'legs'),
             
-            # Other specific items
-            'hand of morchok': 'one_hand_axe',
-            'vagaries of time': 'one_hand_mace',
-            'razor saronite chip': 'thrown',
-            'finger of zon\'ozz': 'wand',
-            'horrifying horn arbalest': 'crossbow',
-            'scalpel of unrelenting agony': 'dagger',
-            'spire of coagulated globules': 'staff',
-            'experimental specimen slicer': 'two_hand_axe',
-            'electrowing dagger': 'dagger',
-            'lightning rod': 'staff',
-            'morningstar of heroic will': 'one_hand_mace',
-            'ledger of revolting rituals': 'off_hand',
-            'ataraxis, cudgel of the warmaster': 'two_hand_mace',
-            'visage of the destroyer': 'staff',
-            'blackhorn\'s mighty bulwark': 'shield',
-            'timepiece of the bronze flight': 'shield',
-            'ruinblaster shotgun': 'gun',
-            'spine of the thousand cuts': 'one_hand_sword',
-            'dragonfire orb': 'off_hand'
+            'crown of the corrupted conqueror': ('Conqueror', 'head'),
+            'shoulders of the corrupted conqueror': ('Conqueror', 'shoulder'),
+            'chest of the corrupted conqueror': ('Conqueror', 'chest'),
+            'gauntlets of the corrupted conqueror': ('Conqueror', 'hands'),
+            'leggings of the corrupted conqueror': ('Conqueror', 'legs'),
+            
+            'crown of the corrupted vanquisher': ('Vanquisher', 'head'),
+            'shoulders of the corrupted vanquisher': ('Vanquisher', 'shoulder'),
+            'chest of the corrupted vanquisher': ('Vanquisher', 'chest'),
+            'gauntlets of the corrupted vanquisher': ('Vanquisher', 'hands'),
+            'leggings of the corrupted vanquisher': ('Vanquisher', 'legs'),
         }
         
+        # Initialize item data from loot tables CSV
+        self.load_loot_tables()
+        
+    def load_loot_tables(self):
+        """
+        Load item data from the loot_tables.csv file to improve item classification.
+        This creates a mapping of item names to their slots and types.
+        """
+        self.loot_table_items = {}  # Maps item name to (slot, type)
+        self.token_items = {}       # Maps token name to slot
+        
+        # Path to the loot tables CSV
+        loot_tables_path = "loot_tables.csv"
+        
+        if not os.path.exists(loot_tables_path):
+            print(f"Warning: Loot tables file not found at {loot_tables_path}")
+            return
+            
+        try:
+            # Read the CSV file
+            with open(loot_tables_path, 'r') as f:
+                lines = f.readlines()
+            
+            print(f"Read {len(lines)} lines from loot_tables.csv")
+            
+            # Skip header line
+            current_boss = None
+            current_difficulty = None
+            
+            for line in lines[1:]:  # Skip header
+                parts = line.strip().split(',')
+                
+                # Skip empty lines
+                if not line.strip():
+                    continue
+                    
+                # Check if this is a heading line
+                if len(parts) == 1:
+                    current_boss = parts[0]
+                    continue
+                    
+                # Check if this is a difficulty line
+                if len(parts) == 2 and parts[1] and not parts[0]:
+                    current_difficulty = parts[1]
+                    continue
+                    
+                # Extract slot, item name, and type
+                slot = parts[2].strip() if len(parts) > 2 and parts[2] else ''
+                item_name = parts[3].strip() if len(parts) > 3 and parts[3] else ''
+                item_type = parts[4].strip() if len(parts) > 4 and parts[4] else ''
+                
+                if item_name and slot:
+                    # Clean up item name (some have duplicated names)
+                    if item_name.count(item_name.split()[0]) > 1:
+                        item_name = ' '.join(item_name.split()[:len(item_name.split())//2])
+                    
+                    # Store in our mapping
+                    self.loot_table_items[item_name.lower()] = (slot.lower(), item_type)
+                    
+                    # Also store without the "- Item - Cataclysm Classic" suffix
+                    clean_name = item_name.lower()
+                    if " - item - cataclysm classic" in clean_name:
+                        clean_name = clean_name.replace(" - item - cataclysm classic", "").strip()
+                        self.loot_table_items[clean_name] = (slot.lower(), item_type)
+                    
+                    # Check if this is a token item using our manual mapping
+                    if clean_name in self.token_mapping:
+                        token_type, token_slot = self.token_mapping[clean_name]
+                        self.token_items[clean_name] = token_slot
+                        print(f"Added token item: {item_name} -> {token_type} {token_slot}")
+            
+            print(f"Loaded {len(self.loot_table_items)} items from loot tables")
+            print(f"Identified {len(self.token_items)} token items")
+            
+        except Exception as e:
+            print(f"Error loading loot tables: {e}")
+            import traceback
+            traceback.print_exc()
+        
     def normalize_name(self, name):
-        """Normalize player names to handle case and special characters"""
-        if pd.isna(name):
-            return None
+        """Normalize player name to handle case differences and special characters"""
+        if not name:
+            return name
+            
+        # Convert to lowercase
+        normalized = name.lower()
         
-        # Convert to lowercase and strip whitespace
-        normalized = name.lower().strip()
-        
-        # Manual name mapping
+        # Apply manual mappings if available
         if normalized in self.manual_mappings:
             normalized = self.manual_mappings[normalized]
-            
-        # Debug name for ricardo
-        if normalized == 'ricardomìlos' or normalized == 'ricardo':
-            print(f"DEBUG: normalizing {name} to {normalized}")
             
         # If we have a mapping for this name, use the canonical version
         if normalized in self.name_mapping:
@@ -399,11 +395,11 @@ class DragonSoulLootAnalyzer:
         print("Name mappings identified:")
         print("  Manual mappings:")
         for orig, mapped in self.manual_mappings.items():
-            print(f"    {orig} → {mapped}")
+            print(f"    {orig} -> {mapped}")
         
         print("  Auto-detected mappings:")
         for orig, mapped in self.name_mapping.items():
-            print(f"    {orig} → {mapped}")
+            print(f"    {orig} -> {mapped}")
     
     def get_player_primary_stat(self, player_class, player_spec):
         """Determine the primary stat for a player based on class and spec"""
@@ -425,33 +421,22 @@ class DragonSoulLootAnalyzer:
         
     def extract_token_info(self, item_name):
         """Extract token type and slot from an item name"""
-        if "Corrupted" not in item_name:
+        if not item_name:
             return None, None
             
-        # Extract token type
-        token = None
-        for token_type in ["Vanquisher", "Conqueror", "Protector"]:
-            if token_type in item_name:
-                token = token_type
-                break
-                
-        if not token:
-            return None, None
+        item_name_lower = item_name.lower()
+        
+        # Remove the "- Item - Cataclysm Classic" suffix if present
+        if " - item - cataclysm classic" in item_name_lower:
+            item_name_lower = item_name_lower.replace(" - item - cataclysm classic", "").strip()
+        
+        # Check if the item is in our manual token mapping
+        if item_name_lower in self.token_mapping:
+            token_type, token_slot = self.token_mapping[item_name_lower]
+            print(f"Found token item: {item_name} -> {token_type} {token_slot}")
+            return token_type, token_slot
             
-        # Extract token slot
-        token_slot = 'unknown'
-        if "Helm" in item_name or "Crown" in item_name:
-            token_slot = 'head'
-        elif "Shoulder" in item_name or "Spaulders" in item_name:
-            token_slot = 'shoulder'
-        elif "Chest" in item_name or "Robe" in item_name:
-            token_slot = 'chest'
-        elif "Gauntlet" in item_name or "Gloves" in item_name or "Hand" in item_name:
-            token_slot = 'hands'
-        elif "Leg" in item_name or "Kilt" in item_name or "Pants" in item_name:
-            token_slot = 'legs'
-            
-        return token, token_slot
+        return None, None
         
     def load_data(self):
         """Load all CSV data files from the data directory"""
@@ -536,7 +521,7 @@ class DragonSoulLootAnalyzer:
                     # For debugging
                     original_name = row[self.get_column_name(row, 'IGN')]
                     if player_name != original_name.lower().strip():
-                        print(f"Mapped loot: {original_name} → {player_name}: {row['Item']}")
+                        print(f"Mapped loot: {original_name} -> {player_name}: {row['Item']}")
                     
                     # Update player_info if not already set
                     if player_name not in self.player_info:
@@ -564,30 +549,12 @@ class DragonSoulLootAnalyzer:
                             self.player_item_slots[player_name][token_slot] += 1
                             print(f"  Token slot: {item_name} -> {token_slot}")
                     
-                    # Determine and track the item slot
-                    item_slot = self.determine_item_slot(item_name)
-                    if item_slot != 'unknown':
-                        self.player_item_slots[player_name][item_slot] += 1
-                        
-                        # Debug slot detection for some items
-                        debug_items = ['Bow', 'Vial', 'Voice of the Deeps', 'Steps of Time', 
-                                      'Fury of Beasts', 'Souldrinker', 'Elements of Death', 
-                                      'Unmaker', 'Dragonlord', 'Poisonous Mind', 'Jaws of the Earth']
-                        debug_players = ['ricardo', 'albear', 'ooverdeath']
-                        
-                        if player_name in debug_players or any(keyword in item_name for keyword in debug_items):
-                            print(f"  Item slot: {item_name} -> {item_slot} for {player_name}")
+                    # This prevents double-counting token items
+                    if not token:
+                        item_slot = self.determine_item_slot(item_name)
+                        if item_slot != 'unknown':
+                            self.player_item_slots[player_name][item_slot] += 1
                     
-                    # Categorize by item type (jewelry/weapon)
-                    item_name_lower = item_name.lower()
-                    
-                    # Check if it's jewelry
-                    if any(keyword in item_name_lower for keyword in self.jewelry_keywords):
-                        self.player_jewelry_count[player_name] += 1
-                        
-                    # Check if it's a weapon
-                    if any(keyword in item_name_lower for keyword in self.weapon_keywords):
-                        self.player_weapon_count[player_name] += 1
     
     def calculate_attendance(self):
         """Calculate attendance percentage for each player based on boss kills"""
@@ -599,28 +566,37 @@ class DragonSoulLootAnalyzer:
             
             # Apply 25-man bonus if applicable
             if "25" in self.player_raid_size.get(player, set()):
-                # Count how many bosses were done in 25-man
-                twenty_five_man_bosses = 0
+                # Track 25-man bosses where player was present
+                player_25man_bosses = 0
+                total_25man_bosses = 0
+                
+                # First count total 25-man bosses
+                for filename, _ in self.raid_participants:
+                    if "25man" in filename:
+                        for pattern, count in self.file_to_bosses.items():
+                            if pattern in filename:
+                                total_25man_bosses += count
+                                break
+                
+                # Then count which ones player attended
                 for filename, participants_df in self.raid_participants:
                     if "25man" in filename:
-                        # Check if player was in this raid
-                        player_in_raid = False
                         for _, row in participants_df.iterrows():
                             player_name, _ = self.extract_player_info(row)
                             if player_name == player:
-                                player_in_raid = True
+                                # Count bosses for this raid
+                                for pattern, count in self.file_to_bosses.items():
+                                    if pattern in filename:
+                                        player_25man_bosses += count
+                                        break
                                 break
-                                
-                        if player_in_raid:
-                            # Count bosses
-                            for pattern, count in self.file_to_bosses.items():
-                                if pattern in filename:
-                                    twenty_five_man_bosses += count
-                                    break
                 
-                # Apply bonus proportionally to 25-man attendance
-                bonus_portion = twenty_five_man_bosses / self.total_bosses
-                attendance_percentage[player] = base_attendance * (1 + (self.raid_25_percent_bonus * bonus_portion))
+                # Apply bonus proportionally to player's 25-man attendance
+                if total_25man_bosses > 0:
+                    bonus_portion = player_25man_bosses / total_25man_bosses
+                    attendance_percentage[player] = base_attendance * (1 + (self.raid_25_percent_bonus * bonus_portion))
+                else:
+                    attendance_percentage[player] = base_attendance
             else:
                 attendance_percentage[player] = base_attendance
             
@@ -656,24 +632,7 @@ class DragonSoulLootAnalyzer:
     
     def get_loot_priority_recommendations(self, attendance, loot_per_boss):
         """Generate loot priority recommendations based on attendance and loot per boss"""
-        # Debug attendance for key players
-        if self.debug_config['show_attendance']:
-            print("\nAttendance for key players:")
-            for player in self.debug_config['players']:
-                if player in attendance:
-                    print(f"  {player}: {attendance[player]:.1f}%")
-        
-        # Print loot per boss for key players
-        if self.debug_config['show_loot_per_boss']:
-            print("\nLoot per boss:")
-            for player in sorted(loot_per_boss.keys(), key=lambda x: loot_per_boss[x]):
-                if player in loot_per_boss:
-                    print(f"  {player}: {loot_per_boss[player]:.4f} ({self.player_loot_count.get(player, 0)} items / {self.player_boss_attendance.get(player, 0)} bosses)")
-        
-        # Priority formula that considers:
-        # 1. Boss attendance (higher = better)
-        # 2. Loot per boss (lower = better)
-        # 3. Item slot importance (weighted by slot category)
+
         regular_priority_scores = {}
         token_priority_scores = {}
         
@@ -695,12 +654,6 @@ class DragonSoulLootAnalyzer:
                 
                 # Get player's token type
                 player_token = self.player_info.get(player, {}).get('Token', 'Unknown')
-                
-                # Print item slots for debugging
-                if self.debug_config['show_item_slots'] and player in self.debug_config['players']:
-                    print(f"\nItem slots for {player}:")
-                    for slot, count in self.player_item_slots[player].items():
-                        print(f"  {slot}: {count} items")
                 
                 # Calculate penalties for regular items and token items separately
                 regular_item_penalty = 0
@@ -727,24 +680,36 @@ class DragonSoulLootAnalyzer:
                         
                         # Add to appropriate penalty category
                         # Check if this is a token slot
-                        is_token_slot = False
                         if player_token in self.token_slot_importance and slot in self.token_slot_importance[player_token]:
-                            is_token_slot = True
                             token_item_penalty += weighted_token_slot_penalty
                         else:
                             regular_item_penalty += weighted_slot_penalty
-                        
-                        # Debug output for specific players
-                        if self.debug_config['show_priority_calculation'] and player in self.debug_config['players']:
-                            slot_type = "token" if is_token_slot else "regular"
-                            print(f"  - {slot} penalty ({slot_type}): {count}/{bosses_attended} * {self.item_penalty_multiplier} * {slot_multiplier} = {weighted_slot_penalty:.2f}")
                 
-                # Calculate 25-man bonus (now handled in attendance calculation)
-                raid_size_bonus = 0  # Removed flat bonus as it's now in attendance
-                
-                # COMPLETELY REVISED CALCULATION:
-                # For regular items: attendance - regular_penalty - (token_penalty * reduction)
-                # For token items: attendance - token_penalty - (regular_penalty * reduction)
+                # Calculate raid size bonus
+                raid_size_bonus = 0
+                if "25" in self.player_raid_size.get(player, set()):
+                    # Count how many bosses were done in 25-man
+                    twenty_five_man_bosses = 0
+                    for filename, participants_df in self.raid_participants:
+                        if "25man" in filename:
+                            # Check if player was in this raid
+                            player_in_raid = False
+                            for _, row in participants_df.iterrows():
+                                player_name, _ = self.extract_player_info(row)
+                                if player_name == player:
+                                    player_in_raid = True
+                                    break
+                                    
+                            if player_in_raid:
+                                # Count bosses
+                                for pattern, count in self.file_to_bosses.items():
+                                    if pattern in filename:
+                                        twenty_five_man_bosses += count
+                                        break
+                    
+                    # Apply bonus proportionally to 25-man attendance
+                    bonus_portion = twenty_five_man_bosses / self.total_bosses
+                    raid_size_bonus = attendance_score * (self.raid_25_percent_bonus * bonus_portion)
                 
                 # Calculate final priority scores
                 regular_score = attendance_score - regular_item_penalty - (token_item_penalty * self.token_penalty_reduction) + raid_size_bonus
@@ -753,22 +718,6 @@ class DragonSoulLootAnalyzer:
                 # Store both scores
                 regular_priority_scores[player] = regular_score
                 token_priority_scores[player] = token_score
-                
-                # Add explanation for specific players for debugging
-                if self.debug_config['show_priority_calculation'] and player in self.debug_config['players']:
-                    print(f"\nPriority calculation for {player}:")
-                    print(f"  Attendance: {attendance.get(player, 0):.1f}% × {self.attendance_weight} = {attendance_score:.1f}")
-                    
-                    # UPDATED DEBUG OUTPUT to clarify the calculation
-                    print(f"  Regular item priority calculation:")
-                    print(f"    - Full regular item penalty: {regular_item_penalty:.1f}")
-                    print(f"    - Reduced token penalty (50%): {token_item_penalty * self.token_penalty_reduction:.1f}")
-                    print(f"    - Final regular priority: {attendance_score:.1f} - {regular_item_penalty:.1f} - {token_item_penalty * self.token_penalty_reduction:.1f} = {regular_score:.1f}")
-                    
-                    print(f"  Token item priority calculation:")
-                    print(f"    - Full token item penalty: {token_item_penalty:.1f}")
-                    print(f"    - Reduced regular penalty (50%): {regular_item_penalty * self.token_penalty_reduction:.1f}")
-                    print(f"    - Final token priority: {attendance_score:.1f} - {token_item_penalty:.1f} - {regular_item_penalty * self.token_penalty_reduction:.1f} = {token_score:.1f}")
         
         # Sort by regular priority score (descending)
         sorted_players = sorted(regular_priority_scores.items(), key=lambda x: x[1], reverse=True)
@@ -834,26 +783,23 @@ class DragonSoulLootAnalyzer:
         loot_per_boss = self.calculate_loot_per_boss()
         
         # Get token class distribution
-        token_classes = self.get_token_class_distribution()
+        self.get_token_class_distribution()
         
-        # Print slot value multipliers
-        print("\nSlot Value Categories:")
-        for category, slots in [
-            ("Highest Value", [slot for slot, value in self.slot_categories.items() if value >= 1.5]),
-            ("Medium-High Value", [slot for slot, value in self.slot_categories.items() if 1.3 <= value < 1.5]),
-            ("Medium-Low Value", [slot for slot, value in self.slot_categories.items() if 1.1 <= value < 1.3]),
-            ("Lowest Value", [slot for slot, value in self.slot_categories.items() if value <= 1.1])
-        ]:
-            print(f"  {category}: {', '.join(slots)}")
+        # Get loot priority recommendations
+        recommendations = self.get_loot_priority_recommendations(attendance, loot_per_boss)
         
-        # Print token-specific slot values
-        print("\nToken-Specific Slot Values:")
-        for token, slots in self.token_slot_importance.items():
-            print(f"  {token}: {', '.join([f'{slot} ({value})' for slot, value in slots.items()])}")
+        # Export detailed analysis to CSV
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_filename = f"loot_analysis_report_{timestamp}.csv"
+        self.export_to_csv(recommendations, csv_filename)
+        
+        # Print summary information
+        print("\nSUMMARY INFORMATION:")
+        print("-"*80)
         
         # Print total items distributed
         total_items = sum(self.player_loot_count.values())
-        print(f"\nTotal Items Distributed: {total_items}")
+        print(f"Total Items Distributed: {total_items}")
         
         # Print token distribution
         token_counts = Counter()
@@ -861,544 +807,222 @@ class DragonSoulLootAnalyzer:
             for token, count in player_tokens.items():
                 token_counts[token] += count
         
-        print("Token Distribution:")
+        print("\nToken Distribution:")
         for token, count in token_counts.items():
             print(f"  {token}: {count}")
         
-        # Get loot priority recommendations
-        recommendations = self.get_loot_priority_recommendations(attendance, loot_per_boss)
+        # Print top 5 priority players
+        print("\nTop 5 Priority Players:")
+        sorted_players = sorted(recommendations, key=lambda x: float(x['Priority Score Value']), reverse=True)
+        for i, player in enumerate(sorted_players[:5], 1):
+            print(f"  {i}. {player['IGN']} ({player['Class']} - {player['Spec']}) - Score: {player['Priority Score']}")
         
-        print("\nLOOT PRIORITY RECOMMENDATIONS:")
-        print("-"*120)
-        print(f"{'Player':<15} {'Class':<10} {'Spec':<12} {'Role':<8} {'Token':<10} {'Stat':<10} {'Is Healer':<8} {'Attend':<8} {'Items':<6} {'Per Boss':<8} {'Tokens':<7} {'Priority'}")
-        print("-"*120)
+        print("\nDetailed analysis has been exported to:", csv_filename)
+        print("The CSV file contains complete information including:")
+        print("- Player details (Name, Class, Spec, Role)")
+        print("- Raid participation metrics")
+        print("- Loot distribution")
+        print("- Priority scores and rankings")
+        print("- Personalized recommendations")
         
-        for rec in recommendations:
-            print(f"{rec['IGN']:<15} {rec['Class']:<10} {rec['Spec']:<12} {rec['Role']:<8} {rec['Token']:<10} "
-                  f"{rec['Stat']:<10} {rec['Is Healer']:<8} {rec['Attendance']:<8} {rec['Items Received']:<6} "
-                  f"{rec['Items Per Boss']:<8} {rec['Token Items']:<7} {rec['Priority Score']}")
-        
-        # Token-specific recommendations
-        print("\nTOKEN-SPECIFIC PRIORITY RECOMMENDATIONS (TOP 10):")
-        for token in ["Vanquisher", "Conqueror", "Protector"]:
-            token_players = [r for r in recommendations if r['Token'] == token]
-            if token_players:
-                # Sort by token priority score instead of regular priority
-                token_players.sort(key=lambda x: float(x['Token Priority Score Value']), reverse=True)
-                print(f"\n{token} Token Priority:")
-                for i, player in enumerate(token_players[:10], 1):
-                    print(f"  {i}. {player['IGN']} ({player['Class']} - {player['Spec']}) - Score: {player['Token Priority Score']}")
-        
-        # Stat-based priority recommendations (Top 10)
-        print("\nSTAT-BASED PRIORITY RECOMMENDATIONS (TOP 10):")
-        
-        # Healer priority
-        healer_players = [r for r in recommendations if r['Role'] == 'Healer']
-        if healer_players:
-            # Sort by priority score
-            healer_players.sort(key=lambda x: float(x['Priority Score Value']), reverse=True)
-            print("\nHealer Priority:")
-            for i, player in enumerate(healer_players[:10], 1):
-                print(f"  {i}. {player['IGN']} ({player['Class']} - {player['Spec']}) - Score: {player['Priority Score']}")
-        
-        # Intellect user priority
-        intellect_players = [r for r in recommendations if r['Stat'] == 'Intellect' and r['Role'] != 'Healer']
-        if intellect_players:
-            # Sort by priority score
-            intellect_players.sort(key=lambda x: float(x['Priority Score Value']), reverse=True)
-            print("\nIntellect User Priority (Non-Healers):")
-            for i, player in enumerate(intellect_players[:10], 1):
-                print(f"  {i}. {player['IGN']} ({player['Class']} - {player['Spec']}) - Score: {player['Priority Score']}")
-        
-        # Agility user priority
-        agility_players = [r for r in recommendations if r['Stat'] == 'Agility']
-        if agility_players:
-            # Sort by priority score
-            agility_players.sort(key=lambda x: float(x['Priority Score Value']), reverse=True)
-            print("\nAgility User Priority:")
-            for i, player in enumerate(agility_players[:10], 1):
-                print(f"  {i}. {player['IGN']} ({player['Class']} - {player['Spec']}) - Score: {player['Priority Score']}")
-        
-        # Strength user priority
-        strength_players = [r for r in recommendations if r['Stat'] == 'Strength']
-        if strength_players:
-            # Sort by priority score
-            strength_players.sort(key=lambda x: float(x['Priority Score Value']), reverse=True)
-            print("\nStrength User Priority:")
-            for i, player in enumerate(strength_players[:10], 1):
-                print(f"  {i}. {player['IGN']} ({player['Class']} - {player['Spec']}) - Score: {player['Priority Score']}")
-        
-        # Tank priority (special case)
-        tank_players = [r for r in recommendations if r['Role'] in ['Main Tank', 'Offtank']]
-        if tank_players:
-            # Sort by priority score
-            tank_players.sort(key=lambda x: float(x['Priority Score Value']), reverse=True)
-            print("\nTank Priority:")
-            for i, player in enumerate(tank_players, 1):
-                print(f"  {i}. {player['IGN']} ({player['Class']} - {player['Spec']}) - Score: {player['Priority Score']}")
-        
-        # Players with zero loot
-        zero_loot_players = [r for r in recommendations if r['Items Received'] == 0]
-        if zero_loot_players:
-            print("\nPLAYERS WITH ZERO LOOT:")
-            for player in zero_loot_players:
-                print(f"  • {player['IGN']} ({player['Class']} - {player['Spec']}) - Attendance: {player['Attendance']}")
-        
-        print("\n" + "="*120)
-        print(f"{'END OF REPORT':^120}")
-        print("="*120)
-
-    def run_analysis(self):
-        """Run the complete analysis and generate recommendations"""
-        print("\nDRAGON SOUL LOOT COUNCIL ANALYSIS REPORT (ENHANCED)")
-        print("=" * 60)
-        print(f"Raid Reset: Monday 2502, Sunday 2402")
-        print(f"Total Bosses: {self.total_bosses} (3 in 10-man, 6 in 25-man)")
-        
-        # Debug players to show detailed information for
-        debug_players = ['ricardo', 'bestdk', 'borran', 'moruse', 'ooverdeath', 'albear']
-        
-        # Print full bosses attended for key players
-        print("\nDetailed player attendance:")
-        for player in debug_players:
-            if player in self.player_boss_attendance:
-                bosses = self.player_boss_attendance[player]
-                raid_sizes = ", ".join(self.player_raid_size[player])
-                print(f"  {player}: {bosses}/{self.total_bosses} bosses in raid size {raid_sizes}")
-        
-        # Print item details for key players
-        print("\nDetailed item distribution:")
-        for player in debug_players:
-            regular_items = self.player_loot_count.get(player, 0) - sum(self.player_token_count[player].values())
-            token_items = sum(self.player_token_count[player].values())
-            jewelry_items = self.player_jewelry_count.get(player, 0)
-            weapon_items = self.player_weapon_count.get(player, 0)
-            print(f"  {player}: {self.player_loot_count.get(player, 0)} total items")
-            print(f"    - Regular: {regular_items} (Non-special: {regular_items - jewelry_items - weapon_items}, Jewelry: {jewelry_items}, Weapons: {weapon_items})")
-            print(f"    - Tokens: {token_items} ({', '.join(f'{t}: {c}' for t, c in self.player_token_count[player].items() if c > 0)})")
-            
-            # Print item slots for this player
-            if self.player_item_slots[player]:
-                print(f"    - Item slots: {', '.join(f'{slot}: {count}' for slot, count in self.player_item_slots[player].items())}")
-
-        print("\nPriority Calculation Parameters:")
-        print(f"  Attendance Weight: {self.attendance_weight}")
-        print(f"  Item Penalty Multiplier: {self.item_penalty_multiplier}")
-        print(f"  Token Penalty Reduction: {self.token_penalty_reduction}")
-        print(f"  25-man Raid Bonus: {self.raid_25_percent_bonus*100}%")
-        
-        # Print item slot categories
-        print("\nItem Slot Categories:")
-        for category, slots in [
-            ("Highest Value (1.5)", [slot for slot, value in self.slot_categories.items() if value >= 1.5]),
-            ("Medium-High Value (1.3)", [slot for slot, value in self.slot_categories.items() if 1.3 <= value < 1.5]),
-            ("Medium-Low Value (1.2)", [slot for slot, value in self.slot_categories.items() if 1.1 <= value < 1.3]),
-            ("Low Value (1.1)", [slot for slot, value in self.slot_categories.items() if 1.0 < value < 1.1]),
-            ("Lowest Value (1.0)", [slot for slot, value in self.slot_categories.items() if value <= 1.0])
-        ]:
-            print(f"  {category}: {', '.join(slots)}")
-            
-        # Print weapon types
-        print("\nWeapon Types:")
-        for weapon_type in sorted(self.weapon_types.keys()):
-            print(f"  {weapon_type.replace('_', ' ').title()}")
-            
-        # Print token slot importance
-        print("\nToken Slot Importance:")
-        for token, slots in self.token_slot_importance.items():
-            print(f"  {token}: {', '.join(f'{slot} ({value})' for slot, value in slots.items())}")
-            
-        # Print specific item mappings count
-        print(f"\nSpecific Item Mappings: {len(self.specific_item_mappings)} items")
+        print("\n" + "="*80)
+        print(f"{'END OF REPORT':^80}")
+        print("="*80)
 
     def determine_item_slot(self, item_name):
-        """Determine the slot of an item based on its name"""
+        """
+        Determine the slot for an item based on its name.
+        Priority order:
+        1. Check in loot_table_items from CSV
+        2. Check if it's a token item
+        3. Try to determine from item name patterns
+        4. Return 'unknown' if not found
+        """
         if not item_name:
             return 'unknown'
             
         item_name_lower = item_name.lower()
         
-        # First check specific item mappings
-        if item_name_lower in self.specific_item_mappings:
-            specific_type = self.specific_item_mappings[item_name_lower]
-            
-            # Map weapon types to the general 'weapon' category
-            if specific_type in self.weapon_types:
-                return 'weapon'
-                
-            # For other specific mappings, return the slot directly
-            return specific_type
+        # Remove the "- Item - Cataclysm Classic" suffix if present
+        if " - item - cataclysm classic" in item_name_lower:
+            item_name_lower = item_name_lower.replace(" - item - cataclysm classic", "").strip()
         
-        # Check if it's a token
+        # 1. Check in loot tables from CSV
+        if hasattr(self, 'loot_table_items') and item_name_lower in self.loot_table_items:
+            slot, _ = self.loot_table_items[item_name_lower]
+            return slot
+            
+        # 2. Check if it's a token item
         token, token_slot = self.extract_token_info(item_name)
         if token and token_slot != 'unknown':
             return token_slot
-        
-        # Check if it's a trinket (special category)
-        if any(keyword in item_name_lower for keyword in self.slot_keywords['trinket']):
-            return 'trinket'
             
-        # Check if it's a weapon
-        for weapon_type, keywords in self.weapon_types.items():
-            if any(keyword in item_name_lower for keyword in keywords):
-                # For ranged weapons and off-hands, use their specific categories
-                if weapon_type in ['bow', 'gun', 'crossbow', 'wand', 'thrown']:
-                    return 'ranged'
-                elif weapon_type in ['shield', 'off_hand']:
-                    return 'off-hand'
-                else:
-                    return 'weapon'
         
-        # Check each slot based on keywords
-        for slot, keywords in self.slot_keywords.items():
+        # 3. Try to determine from item name patterns
+        # Common slot keywords
+        slot_keywords = {
+            'head': ['helm', 'hood', 'crown', 'cowl', 'headpiece', 'faceguard', 'headguard', 'mask'],
+            'neck': ['necklace', 'amulet', 'choker', 'pendant', 'chain'],
+            'shoulder': ['shoulder', 'spaulders', 'mantle', 'shoulderguards', 'pauldrons'],
+            'back': ['cloak', 'cape', 'drape', 'shroud'],
+            'chest': ['chest', 'robe', 'tunic', 'breastplate', 'hauberk', 'vestment'],
+            'wrist': ['bracers', 'wristguards', 'wristbands', 'vambraces'],
+            'hands': ['gloves', 'gauntlets', 'handguards', 'grips', 'fists'],
+            'waist': ['belt', 'girdle', 'waistguard', 'waistband', 'cinch', 'cord'],
+            'legs': ['leggings', 'pants', 'legguards', 'legplates', 'kilt', 'greaves'],
+            'feet': ['boots', 'treads', 'sabatons', 'stompers', 'greaves', 'footguards'],
+            'finger': ['ring', 'band', 'seal', 'signet', 'loop'],
+            'trinket': ['trinket', 'charm', 'insignia', 'heart', 'eye', 'fang', 'vial', 'orb'],
+            'weapon': ['sword', 'axe', 'mace', 'staff', 'dagger', 'blade', 'hammer', 'fist', 'scythe', 'glaive', 'spear', 'polearm'],
+            'ranged': ['bow', 'gun', 'crossbow', 'wand', 'thrown', 'rifle', 'launcher'],
+            'off-hand': ['shield', 'offhand', 'tome', 'totem', 'idol', 'orb', 'defender']
+        }
+        
+        # Check for slot keywords in the item name
+        for slot, keywords in slot_keywords.items():
             if any(keyword in item_name_lower for keyword in keywords):
                 return slot
         
-        # Default to a generic slot if we can't determine it
+        # 4. If we get here, we couldn't determine the slot
+        print(f"  WARNING: Could not determine slot for item: {item_name}")
         return 'unknown'
 
-    def verify_all_items_classification(self, items_list):
+    def export_to_csv(self, recommendations, filename="loot_analysis_report.csv"):
         """
-        Verify that all items in the provided list are properly classified.
-        Returns a list of items that couldn't be classified (unknown slot).
+        Export the loot analysis data to a CSV file with enhanced metrics and rankings.
         """
-        if not self.debug_config['enabled']:
-            return []
-            
-        print("\nVERIFYING CLASSIFICATION FOR ALL ITEMS:")
-        print("-" * 60)
-        
-        # Group items by category for better organization
-        categorized_items = {
-            'Madness Weapons': [],
-            'Other Weapons': [],
-            'Trinkets': [],
-            'Armor': [],
-            'Jewelry': [],
-            'Tokens': [],
-            'Other': []
-        }
-        
-        # Categorize items
-        for item in items_list:
-            item_lower = item.lower()
-            
-            # Check if it's a madness weapon
-            if any(madness_name in item_lower for madness_name in [
-                'vishanka', 'jaws of the earth', 'rathrak', 'poisonous mind', 
-                'gurthalak', 'voice of the deeps', 'ti\'tahk', 'steps of time',
-                'kiril', 'fury of beasts', 'souldrinker', 'no\'kaled', 'elements of death',
-                'blade of the unmaker', 'maw of the dragonlord'
-            ]):
-                categorized_items['Madness Weapons'].append(item)
-            # Check if it's a token
-            elif 'corrupted' in item_lower and any(token in item for token in ['Vanquisher', 'Conqueror', 'Protector']):
-                categorized_items['Tokens'].append(item)
-            # Check if it's a trinket
-            elif any(keyword in item_lower for keyword in self.slot_keywords['trinket']):
-                categorized_items['Trinkets'].append(item)
-            # Check if it's a weapon
-            elif any(keyword in item_lower for keyword in self.weapon_keywords):
-                categorized_items['Other Weapons'].append(item)
-            # Check if it's jewelry
-            elif any(keyword in item_lower for keyword in self.jewelry_keywords):
-                categorized_items['Jewelry'].append(item)
-            # Check if it's armor
-            elif any(keyword in item_lower for keyword in [
-                'helm', 'hood', 'crown', 'shoulder', 'spaulder', 'chest', 'robe', 'wrist', 'bracer',
-                'glove', 'gauntlet', 'belt', 'waist', 'leg', 'pant', 'boot', 'feet', 'treads'
-            ]):
-                categorized_items['Armor'].append(item)
-            else:
-                categorized_items['Other'].append(item)
-        
-        # Debug each category
-        all_unknown_items = []
-        for category, items in categorized_items.items():
-            if items:  # Only process non-empty categories
-                results = self.debug_item_classification(items, category)
-                unknown_items = [r['item'] for r in results if r['slot'] == 'unknown']
-                all_unknown_items.extend(unknown_items)
-        
-        # Print classification summary
-        print("\nCLASSIFICATION SUMMARY:")
-        total_items = len(items_list)
-        classified_items = total_items - len(all_unknown_items)
-        print(f"  Total items: {total_items}")
-        print(f"  Successfully classified: {classified_items} ({classified_items/total_items*100:.1f}%)")
-        print(f"  Unclassified: {len(all_unknown_items)} ({len(all_unknown_items)/total_items*100:.1f}%)")
-        
-        if all_unknown_items:
-            print("\nUNCLASSIFIED ITEMS:")
-            for item in all_unknown_items:
-                print(f"  - {item}")
-        else:
-            print("\nSUCCESS: All items were successfully classified!")
-        
-        return all_unknown_items
+        # Calculate various rankings
+        overall_rank = {rec['Player']: idx + 1 for idx, rec in enumerate(sorted(
+            recommendations, 
+            key=lambda x: float(x['Priority Score Value']), 
+            reverse=True
+        ))}
 
-    def verify_item_classification(self, item_name):
-        """
-        Verify the classification of a single item and return detailed information.
-        
-        Args:
-            item_name: The name of the item to classify
-            
-        Returns:
-            dict: A dictionary containing classification details
-        """
-        item_name_lower = item_name.lower()
-        slot = self.determine_item_slot(item_name)
-        
-        # Check if it's in specific mappings
-        in_specific_mappings = item_name_lower in self.specific_item_mappings
-        
-        # Check if it's a token
-        token, token_slot = self.extract_token_info(item_name)
-        is_token = token is not None
-        
-        # Check if it's a weapon
-        is_weapon = False
-        weapon_type = None
-        for wtype, keywords in self.weapon_types.items():
-            if any(keyword in item_name_lower for keyword in keywords):
-                is_weapon = True
-                weapon_type = wtype
-                break
-        
-        # Check if it's jewelry
-        is_jewelry = any(keyword in item_name_lower for keyword in self.jewelry_keywords)
-        
-        # Determine classification method
-        classification_method = "unknown"
-        if in_specific_mappings:
-            classification_method = "specific_mapping"
-        elif is_token and token_slot != 'unknown':
-            classification_method = "token"
-        elif is_weapon:
-            classification_method = "weapon_keywords"
-        elif slot != 'unknown':
-            classification_method = "slot_keywords"
-            
-        return {
-            'item': item_name,
-            'slot': slot,
-            'in_specific_mappings': in_specific_mappings,
-            'is_token': is_token,
-            'token_type': token,
-            'token_slot': token_slot,
-            'is_weapon': is_weapon,
-            'weapon_type': weapon_type,
-            'is_jewelry': is_jewelry,
-            'classification_method': classification_method
-        }
+        # Calculate token rankings
+        token_rank = {}
+        for token in ['Vanquisher', 'Conqueror', 'Protector']:
+            token_players = [r for r in recommendations if r['Token'] == token]
+            token_players.sort(key=lambda x: float(x['Token Priority Score Value']), reverse=True)
+            for idx, player in enumerate(token_players):
+                token_rank[player['Player']] = idx + 1
 
-    def debug_item_classification(self, items_list, category_name=None):
-        """
-        Debug the classification of a list of items.
-        
-        Args:
-            items_list: List of item names to classify
-            category_name: Optional name of the category for display purposes
-        """
-        if not self.debug_config['enabled']:
-            return
-            
-        if category_name:
-            print(f"\n{category_name}:")
-        
-        results = []
-        unknown_items = []
-        
-        for item in items_list:
-            classification = self.verify_item_classification(item)
-            results.append(classification)
-            
-            if classification['slot'] == 'unknown':
-                unknown_items.append(item)
-            
-            # Print basic or verbose output based on configuration
-            if self.debug_config['verbose_item_classification']:
-                print(f"  {item}:")
-                print(f"    Slot: {classification['slot']}")
-                print(f"    Method: {classification['classification_method']}")
-                if classification['is_token']:
-                    print(f"    Token: {classification['token_type']} ({classification['token_slot']})")
-                if classification['is_weapon']:
-                    print(f"    Weapon Type: {classification['weapon_type']}")
-            else:
-                print(f"  {item} -> {classification['slot']}")
-        
-        # Print summary
-        if unknown_items:
-            print(f"  WARNING: {len(unknown_items)} items could not be classified:")
-            for item in unknown_items:
-                print(f"    - {item}")
-        
-        return results
+        # Calculate stat rankings
+        stat_rank = {}
+        for stat in ['Intellect', 'Agility', 'Strength']:
+            stat_players = [r for r in recommendations if r['Stat'] == stat]
+            stat_players.sort(key=lambda x: float(x['Priority Score Value']), reverse=True)
+            for idx, player in enumerate(stat_players):
+                stat_rank[player['Player']] = idx + 1
 
-    def update_specific_item_mappings(self):
-        """
-        Update specific item mappings with commonly unclassified items.
-        This method adds mappings for items that are frequently not classified correctly.
-        """
-        # Add trinket mappings
-        trinket_mappings = {
-            'cunning of the cruel': 'trinket',
-            'indomitable pride': 'trinket',
-            'soulshifter vortex': 'trinket',
-            'creche of the final dragon': 'trinket',
-            'starcatcher compass': 'trinket',
-            'eye of unmaking': 'trinket',
-            'heart of unliving': 'trinket',
-            'resolve of undying': 'trinket',
-            'will of unbinding': 'trinket',
-            'wrath of unchaining': 'trinket',
-            'insignia of the corrupted mind': 'trinket',
-            'seal of the seven signs': 'trinket'
-        }
+        # Calculate role rankings
+        role_rank = {}
+        for role in ['Healer', 'DPS', 'Main Tank', 'Offtank']:
+            role_players = [r for r in recommendations if r['Role'] == role]
+            role_players.sort(key=lambda x: float(x['Priority Score Value']), reverse=True)
+            for idx, player in enumerate(role_players):
+                role_rank[player['Player']] = idx + 1
+
+        # Prepare CSV headers
+        headers = [
+            'Player Name',
+            'Class',
+            'Spec',
+            'Role',
+            'Token Type',
+            'Primary Stat',
+            'Is Healer',
+            'Overall Rank',
+            'Token Rank',
+            'Stat Rank',
+            'Role Rank',
+            'Attendance %',
+            'Bosses Attended',
+            'Raid Sizes',
+            'Total Items',
+            'Items Per Boss',
+            'Token Items',
+            'Priority Score',
+            'Token Priority Score',
+            'Item Slots Distribution',
+            'Recommendation'
+        ]
+
+        with open(filename, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=headers)
+            writer.writeheader()
+
+            for rec in recommendations:
+                # Get item slots distribution
+                slots_dist = []
+                for slot, count in self.player_item_slots[rec['Player']].items():
+                    if count > 0:
+                        slots_dist.append(f"{slot}:{count}")
+
+                # Generate recommendation based on scores and rankings
+                recommendation = self.generate_recommendation(
+                    rec, 
+                    overall_rank[rec['Player']], 
+                    token_rank.get(rec['Player'], 0)
+                )
+
+                # Prepare row data
+                row = {
+                    'Player Name': rec['IGN'],
+                    'Class': rec['Class'],
+                    'Spec': rec['Spec'],
+                    'Role': rec['Role'],
+                    'Token Type': rec['Token'],
+                    'Primary Stat': rec['Stat'],
+                    'Is Healer': 'Yes' if rec['Is Healer'] else 'No',
+                    'Overall Rank': overall_rank[rec['Player']],
+                    'Token Rank': token_rank.get(rec['Player'], 'N/A'),
+                    'Stat Rank': stat_rank.get(rec['Player'], 'N/A'),
+                    'Role Rank': role_rank.get(rec['Player'], 'N/A'),
+                    'Attendance %': rec['Attendance'],
+                    'Bosses Attended': rec['Bosses'],
+                    'Raid Sizes': rec['Raid Sizes'],
+                    'Total Items': rec['Items Received'],
+                    'Items Per Boss': rec['Items Per Boss'],
+                    'Token Items': rec['Token Items'],
+                    'Priority Score': rec['Priority Score'],
+                    'Token Priority Score': rec['Token Priority Score'],
+                    'Item Slots Distribution': ', '.join(slots_dist),
+                    'Recommendation': recommendation
+                }
+                writer.writerow(row)
+
+        print(f"\nDetailed analysis exported to {filename}")
+
+    def generate_recommendation(self, player_data, overall_rank, token_rank):
+        """Generate a recommendation string based on player data and rankings"""
+        recommendations = []
         
-        # Add jewelry mappings
-        jewelry_mappings = {
-            'petrified fungal heart': 'neck',
-            'curled twilight claw': 'finger',
-            'ring of the riven': 'finger',
-            'signet of grasping mouths': 'finger'
-        }
+        # High priority recommendations
+        if overall_rank <= 3:
+            recommendations.append("HIGH PRIORITY for next suitable item")
+        elif overall_rank <= 5:
+            recommendations.append("Priority candidate for loot")
+
+        # Token-specific recommendations
+        if token_rank <= 2:
+            recommendations.append(f"HIGH PRIORITY for {player_data['Token']} tokens")
         
-        # Add armor mappings
-        armor_mappings = {
-            'imperfect specimens 27 and 28': 'shoulder',
-            'nightblind cinch': 'waist',
-            'interrogator\'s bloody footpads': 'feet',
-            'mindstrainer treads': 'feet',
-            'heartblood wristplates': 'wrist',
-            'treads of sordid screams': 'feet',
-            'bracers of looming darkness': 'wrist',
-            'janglespur jackboots': 'feet',
-            'shadow wing armbands': 'wrist',
-            'belt of the beloved companion': 'waist',
-            'goriona\'s collar': 'waist',
-            'gloves of liquid smoke': 'hands',
-            'molten blood footpads': 'feet',
-            'belt of shattered elementium': 'waist',
-            'backbreaker spaulders': 'shoulder',
-            'gauntlets of the golden thorn': 'hands'
-        }
-        
-        # Update the specific item mappings
-        self.specific_item_mappings.update(trinket_mappings)
-        self.specific_item_mappings.update(jewelry_mappings)
-        self.specific_item_mappings.update(armor_mappings)
-        
-        # Print update summary if debug is enabled
-        if self.debug_config['enabled']:
-            print("\nUpdated specific item mappings:")
-            print(f"  Added {len(trinket_mappings)} trinket mappings")
-            print(f"  Added {len(jewelry_mappings)} jewelry mappings")
-            print(f"  Added {len(armor_mappings)} armor mappings")
-            print(f"  Total specific mappings: {len(self.specific_item_mappings)}")
+        # Attendance-based recommendations
+        attendance = float(player_data['Attendance'].rstrip('%'))
+        if attendance >= 87.5:
+            recommendations.append("Excellent attendance")
+
+        # Items per boss recommendations
+        items_per_boss = float(player_data['Items Per Boss'])
+        if items_per_boss < 0.2:
+            recommendations.append("Due for loot")
+        elif items_per_boss > 0.8:
+            recommendations.append("Recently received multiple items")
+
+        return " | ".join(recommendations) if recommendations else "Standard priority"
 
 if __name__ == "__main__":
     analyzer = DragonSoulLootAnalyzer()
-    
-    # Update specific item mappings to improve classification
-    analyzer.update_specific_item_mappings()
-    
-    # Define item categories for testing
-    item_categories = {
-        'Madness Weapons': [
-            "Vishanka, Jaws of the Earth", "Rathrak, the Poisonous Mind", 
-            "Gurthalak, Voice of the Deeps", "Ti'tahk, the Steps of Time",
-            "Kiril, Fury of Beasts", "Souldrinker", "No'Kaled, the Elements of Death",
-            "Blade of the Unmaker", "Maw of the Dragonlord"
-        ],
-        'Other Weapons': [
-            "Hand of Morchok", "Vagaries of Time", "Razor Saronite Chip",
-            "Finger of Zon'ozz", "Horrifying Horn Arbalest", "Scalpel of Unrelenting Agony",
-            "Spire of Coagulated Globules", "Experimental Specimen Slicer",
-            "Electrowing Dagger", "Lightning Rod", "Morningstar of Heroic Will",
-            "Ledger of Revolting Rituals", "Ataraxis, Cudgel of the Warmaster",
-            "Visage of the Destroyer", "Blackhorn's Mighty Bulwark",
-            "Timepiece of the Bronze Flight", "Ruinblaster Shotgun",
-            "Spine of the Thousand Cuts", "Dragonfire Orb"
-        ],
-        'Trinkets': [
-            "Bone-Link Fetish", "Cunning of the Cruel", "Indomitable Pride",
-            "Vial of Shadows", "Windward Heart", "Seal of the Seven Signs",
-            "Insignia of the Corrupted Mind", "Soulshifter Vortex",
-            "Creche of the Final Dragon", "Starcatcher Compass",
-            "Eye of Unmaking", "Heart of Unliving", "Resolve of Undying",
-            "Will of Unbinding", "Wrath of Unchaining"
-        ],
-        'Armor': [
-            "Mosswrought Shoulderguards", "Robe of Glowing Stone",
-            "Mycosynth Wristguards", "Underdweller's Spaulders",
-            "Girdle of Shattered Stone", "Sporebeard Gauntlets",
-            "Brackenshell Shoulderplates", "Pillarfoot Greaves",
-            "Rockhide Bracers", "Cord of the Slain Champion",
-            "Belt of Flayed Skin", "Grotesquely Writhing Bracers",
-            "Graveheart Bracers", "Treads of Crushed Flesh",
-            "Bracers of the Banished", "Girdle of the Grotesque",
-            "Treads of Dormant Dreams", "Runescriven Demon Collar",
-            "Treads of Sordid Screams", "Bracers of Looming Darkness",
-            "Imperfect Specimens 27 and 28", "Dragonfracture Belt",
-            "Stillheart Warboots", "Janglespur Jackboots",
-            "Shadow Wing Armbands", "Belt of the Beloved Companion",
-            "Goriona's Collar", "Gloves of Liquid Smoke",
-            "Molten Blood Footpads", "Belt of Shattered Elementium",
-            "Backbreaker Spaulders", "Gauntlets of the Golden Thorn"
-        ],
-        'Jewelry': [
-            "Petrified Fungal Heart", "Breathstealer Band", "Hardheart Ring",
-            "Infinite Loop", "Seal of Primordial Shadow", "Signet of Suturing",
-            "Ring of the Riven", "Signet of Grasping Mouths", "Curled Twilight Claw"
-        ]
-    }
-    
-    # Comprehensive list of Dragon Soul items
-    dragon_soul_items = []
-    for category, items in item_categories.items():
-        dragon_soul_items.extend(items)
-    
-    # Add BoE items
-    boe_items = [
-        "Sash of Relentless Truth", "Nightblind Cinch", "Girdle of Fungal Dreams",
-        "Dragoncarver Belt", "Belt of Ghostly Graces", "Girdle of Soulful Mending",
-        "Waistguard of Bleeding Bone", "Waistplate of the Desecrated Future"
-    ]
-    dragon_soul_items.extend(boe_items)
-    
-    # Add additional items
-    additional_items = [
-        "Interrogator's Bloody Footpads", "Mindstrainer Treads", "Heartblood Wristplates"
-    ]
-    dragon_soul_items.extend(additional_items)
-    
-    print("\nDEBUG ITEM CLASSIFICATION SYSTEM")
-    print("=" * 40)
-    
-    # Test the debug system with different configurations
-    if analyzer.debug_config['enabled']:
-        # Option 1: Test all items at once
-        if analyzer.debug_config['item_categories']['madness_weapons']:
-            analyzer.debug_item_classification(item_categories['Madness Weapons'], "Madness Weapons")
-            
-        if analyzer.debug_config['item_categories']['other_weapons']:
-            analyzer.debug_item_classification(item_categories['Other Weapons'], "Other Weapons")
-            
-        if analyzer.debug_config['item_categories']['trinkets']:
-            analyzer.debug_item_classification(item_categories['Trinkets'], "Trinkets")
-            
-        if analyzer.debug_config['item_categories']['armor']:
-            analyzer.debug_item_classification(item_categories['Armor'], "Armor")
-            
-        if analyzer.debug_config['item_categories']['jewelry']:
-            analyzer.debug_item_classification(item_categories['Jewelry'], "Jewelry")
-        
-        # Option 2: Verify all items at once
-        print("\nTesting comprehensive verification:")
-        analyzer.verify_all_items_classification(dragon_soul_items)
     
     # Run the full analysis
     print("\n")
