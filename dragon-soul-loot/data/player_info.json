@@ -1,0 +1,278 @@
+{
+  "andrewd": {
+    "Original_IGN": "Andrewd",
+    "Class": "Druid",
+    "Spec": "Restoration",
+    "Token": "Vanquisher",
+    "Role": "Healer",
+    "Note": "-pug",
+    "Primary_Stat": "Intellect"
+  },
+  "corwor": {
+    "Original_IGN": "Corwor",
+    "Class": "Warlock",
+    "Spec": "Demonology",
+    "Token": "Conqueror",
+    "Role": "DPS",
+    "Note": "-pug",
+    "Primary_Stat": "Intellect"
+  },
+  "ifbbathlete": {
+    "Original_IGN": "Ifbbathlete",
+    "Class": "Priest",
+    "Spec": "Discipline",
+    "Token": "Conqueror",
+    "Role": "Healer",
+    "Note": "-good pug",
+    "Primary_Stat": "Intellect"
+  },
+  "peps\u00edcola": {
+    "Original_IGN": "Peps\u00edcola",
+    "Class": "Warrior",
+    "Spec": "Arms",
+    "Token": "Protector",
+    "Role": "DPS",
+    "Note": "guildie",
+    "Primary_Stat": "Strength"
+  },
+  "rewolut": {
+    "Original_IGN": "Rewolut",
+    "Class": "Rogue",
+    "Spec": "Combat",
+    "Token": "Vanquisher",
+    "Role": "DPS",
+    "Note": "-pug",
+    "Primary_Stat": "Agility"
+  },
+  "ricardom\u00eclos": {
+    "Original_IGN": "Ricardom\u00eclos",
+    "Class": "Warrior",
+    "Spec": "Arms",
+    "Token": "Protector",
+    "Role": "DPS",
+    "Note": "guildie",
+    "Primary_Stat": "Strength"
+  },
+  "r\u00f9sk\u00f8v": {
+    "Original_IGN": "R\u00f9sk\u00f8v",
+    "Class": "Druid",
+    "Spec": "Feral",
+    "Token": "Vanquisher",
+    "Role": "DPS",
+    "Note": "guildie",
+    "Primary_Stat": "Agility"
+  },
+  "sowzz": {
+    "Original_IGN": "Sowzz",
+    "Class": "Hunter",
+    "Spec": "Survival",
+    "Token": "Protector",
+    "Role": "DPS",
+    "Note": "guildie",
+    "Primary_Stat": "Agility"
+  },
+  "albear": {
+    "Original_IGN": "albear",
+    "Class": "Druid",
+    "Spec": "Feral",
+    "Token": "Vanquisher",
+    "Role": "Offtank",
+    "Note": "albear",
+    "Primary_Stat": "Agility"
+  },
+  "bestdk": {
+    "Original_IGN": "bestdk",
+    "Class": "DK",
+    "Spec": "Frost",
+    "Token": "Vanquisher",
+    "Role": "DPS",
+    "Note": "ben",
+    "Primary_Stat": "Strength"
+  },
+  "borran": {
+    "Original_IGN": "borran",
+    "Class": "Shaman",
+    "Spec": "Elemental",
+    "Token": "Protector",
+    "Role": "DPS",
+    "Note": "borran",
+    "Primary_Stat": "Intellect"
+  },
+  "copro": {
+    "Original_IGN": "copro",
+    "Class": "Mage",
+    "Spec": "Fire",
+    "Token": "Vanquisher",
+    "Role": "DPS",
+    "Note": "guildie",
+    "Primary_Stat": "Intellect"
+  },
+  "dankovich": {
+    "Original_IGN": "dankovich",
+    "Class": "Priest",
+    "Spec": "Discipline",
+    "Token": "Conqueror",
+    "Role": "Healer",
+    "Note": "guildie",
+    "Primary_Stat": "Intellect"
+  },
+  "delusive": {
+    "Original_IGN": "delusive",
+    "Class": "Rogue",
+    "Spec": "Combat",
+    "Token": "Vanquisher",
+    "Role": "DPS",
+    "Note": "chris",
+    "Primary_Stat": "Agility"
+  },
+  "dreamypie": {
+    "Original_IGN": "dreamypie",
+    "Class": "Paladin",
+    "Spec": "Holy",
+    "Token": "Conqueror",
+    "Role": "Healer",
+    "Note": "pie",
+    "Primary_Stat": "Intellect"
+  },
+  "falkeblikk": {
+    "Original_IGN": "falkeblikk",
+    "Class": "Hunter",
+    "Spec": "Survival",
+    "Token": "Protector",
+    "Role": "DPS",
+    "Note": "guildie",
+    "Primary_Stat": "Agility"
+  },
+  "imlegalqt": {
+    "Original_IGN": "imlegalqt",
+    "Class": "Shaman",
+    "Spec": "Enhancement",
+    "Token": "Protector",
+    "Role": "DPS",
+    "Note": "myggan",
+    "Primary_Stat": "Agility"
+  },
+  "jayli": {
+    "Original_IGN": "jayli",
+    "Class": "Mage",
+    "Spec": "Fire",
+    "Token": "Vanquisher",
+    "Role": "DPS",
+    "Note": "guildie",
+    "Primary_Stat": "Intellect"
+  },
+  "milka": {
+    "Original_IGN": "milka",
+    "Class": "Priest",
+    "Spec": "Shadow",
+    "Token": "Conqueror",
+    "Role": "DPS",
+    "Note": "milka",
+    "Primary_Stat": "Intellect"
+  },
+  "moruse": {
+    "Original_IGN": "moruse",
+    "Class": "Druid",
+    "Spec": "Balance",
+    "Token": "Vanquisher",
+    "Role": "DPS",
+    "Note": "moruse",
+    "Primary_Stat": "Intellect"
+  },
+  "nicegaff": {
+    "Original_IGN": "nicegaff",
+    "Class": "Paladin",
+    "Spec": "Holy",
+    "Token": "Conqueror",
+    "Role": "Healer",
+    "Note": "matt",
+    "Primary_Stat": "Intellect"
+  },
+  "overdeath": {
+    "Original_IGN": "overdeath",
+    "Class": "DK",
+    "Spec": "Blood",
+    "Token": "Vanquisher",
+    "Role": "Main Tank",
+    "Note": "over",
+    "Primary_Stat": "Strength"
+  },
+  "ricardo": {
+    "Original_IGN": "ricardo",
+    "Class": "Warrior",
+    "Spec": "Arms",
+    "Token": "Protector",
+    "Role": "DPS",
+    "Note": "guildie",
+    "Primary_Stat": "Strength"
+  },
+  "sanddiglett": {
+    "Original_IGN": "sanddiglett",
+    "Class": "Paladin",
+    "Spec": "Retribution",
+    "Token": "Conqueror",
+    "Role": "DPS",
+    "Note": "saif",
+    "Primary_Stat": "Strength"
+  },
+  "saokipriest": {
+    "Original_IGN": "saokipriest",
+    "Class": "Priest",
+    "Spec": "Discipline",
+    "Token": "Conqueror",
+    "Role": "Healer",
+    "Note": "saoki",
+    "Primary_Stat": "Intellect"
+  },
+  "vallock": {
+    "Original_IGN": "vallock",
+    "Class": "Warlock",
+    "Spec": "Affliction",
+    "Token": "Conqueror",
+    "Role": "DPS",
+    "Note": "guildie",
+    "Primary_Stat": "Intellect"
+  },
+  "woopstab": {
+    "Original_IGN": "woopstab",
+    "Class": "Rogue",
+    "Spec": "Combat",
+    "Token": "Vanquisher",
+    "Role": "DPS",
+    "Note": "tommy",
+    "Primary_Stat": "Agility"
+  },
+  "\u00f0elusive": {
+    "Original_IGN": "\u00d0elusive",
+    "Class": "Rogue",
+    "Spec": "Combat",
+    "Token": "Vanquisher",
+    "Role": "DPS",
+    "Note": "chris",
+    "Primary_Stat": "Agility"
+  },
+  "saoki": {
+    "Original_IGN": "saoki",
+    "Class": "",
+    "Spec": "",
+    "Token": "",
+    "Role": "",
+    "Primary_Stat": "Unknown"
+  },
+  "ruskov": {
+    "Original_IGN": "ruskov",
+    "Class": "",
+    "Spec": "",
+    "Token": "",
+    "Role": "",
+    "Primary_Stat": "Unknown"
+  },
+  "pepsi": {
+    "Original_IGN": "pepsi",
+    "Class": "",
+    "Spec": "",
+    "Token": "",
+    "Role": "",
+    "Primary_Stat": "Unknown"
+  }
+}

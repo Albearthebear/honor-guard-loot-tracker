@@ -672,7 +672,7 @@ class DragonSoulLootAnalyzer:
                             token_slot_multiplier = slot_multiplier
                         
                         # Calculate base penalty for this slot
-                        base_slot_penalty = self.item_penalty_multiplier
+                        base_slot_penalty = (count / bosses_attended) * self.item_penalty_multiplier
                         
                         # Apply slot weighting
                         weighted_slot_penalty = base_slot_penalty * slot_multiplier

@@ -1,0 +1,164 @@
+/* Main Styles */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+/* Card styling */
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.card-header {
+    background-color: #343a40;
+    color: white;
+    font-weight: 500;
+}
+
+/* Table styling */
+.table th {
+    background-color: #f1f1f1;
+}
+
+/* Filter controls */
+.filters {
+    display: flex;
+    flex-direction: column;
+    width: 200px;
+}
+
+/* Class colors for player names */
+.class-warrior {
+    color: #C79C6E;
+}
+
+.class-paladin {
+    color: #F58CBA;
+}
+
+.class-hunter {
+    color: #ABD473;
+}
+
+.class-rogue {
+    color: #FFF569;
+}
+
+.class-priest {
+    color: #FFFFFF;
+}
+
+.class-shaman {
+    color: #0070DE;
+}
+
+.class-mage {
+    color: #69CCF0;
+}
+
+.class-warlock {
+    color: #9482C9;
+}
+
+.class-druid {
+    color: #FF7D0A;
+}
+
+.class-dk {
+    color: #C41F3B;
+}
+
+/* Token colors */
+.token-vanquisher {
+    background-color: #C41F3B;
+    color: white;
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+.token-conqueror {
+    background-color: #F58CBA;
+    color: white;
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+.token-protector {
+    background-color: #0070DE;
+    color: white;
+    padding: 2px 5px;
+    border-radius: 3px;
+}
+
+/* Role colors */
+.role-dps {
+    color: #C41F3B;
+}
+
+.role-tank {
+    color: #0070DE;
+}
+
+.role-healer {
+    color: #2ECC71;
+}
+
+/* Stat colors */
+.stat-strength {
+    color: #C41F3B;
+}
+
+.stat-agility {
+    color: #ABD473;
+}
+
+.stat-intellect {
+    color: #0070DE;
+}
+
+/* WebSocket status */
+#wsStatus {
+    opacity: 0.9;
+}
+
+.ws-connected {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.ws-disconnected {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Participant list in raid modal */
+#participantsList {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 5px;
+}
+
+.participant-checkbox {
+    margin-right: 5px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .filters {
+        width: 100%;
+        margin-top: 10px;
+    }
+    
+    .d-flex {
+        flex-direction: column;
+    }
+    
+    #participantsList {
+        grid-template-columns: 1fr;
+    }
+} 
