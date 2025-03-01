@@ -1,81 +1,70 @@
-# Dragon Soul Loot Manager
+# Honor Guard Loot Tracker
 
-A real-time loot management system for World of Warcraft's Dragon Soul raid, supporting up to 50 concurrent users with live priority updates and loot assignments.
+A real-time loot management system for World of Warcraft Dragon Soul raids, designed to track and prioritize loot distribution based on attendance and previous loot history.
 
 ## Features
 
-- Real-time loot priority display
-- Live loot assignment system
-- WebSocket-based updates
-- Support for both 10 and 25-man raid compositions
-- Token and role-based priority calculations
-- Historical loot tracking
+- **Real-time Loot Priority Display**: Interactive dashboard showing current loot priorities
+- **Loot Assignment System**: Interface to input items as they drop in the raid
+- **Dynamic Priority Updates**: Instant recalculation of priorities when loot is assigned
+- **Data Management**: Integration with CSV export functionality
+- **Role-Based Penalty Adjustments**: Special consideration for tanks (7.5% reduction) and healers (5% reduction)
 
-## Setup
+## Technology Stack
 
-### Prerequisites
+- **Backend**: FastAPI with WebSocket support
+- **Frontend**: HTML, CSS, JavaScript with Bootstrap
+- **Containerization**: Docker
+- **Deployment**: Google Cloud Run
+- **CI/CD**: GitHub Actions
 
-- Docker and Docker Compose
-- Node.js 16+ (for local frontend development)
-- Python 3.9+ (for local backend development)
-
-### Development Setup
-
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd dragon-soul-loot
-   ```
-
-2. Start the development environment:
-   ```bash
-   docker-compose up
-   ```
-
-3. Access the applications:
-   - Frontend: http://localhost:3000
-   - API Documentation: http://localhost:8000/docs
-   - API Base URL: http://localhost:8000
+## Development
 
 ### Local Development
 
-To run the services individually:
+1. Clone the repository:
+   ```
+   git clone https://github.com/Albearthebear/honor-guard-loot-tracker.git
+   cd honor-guard-loot-tracker
+   ```
 
-#### Backend
-```bash
-cd app
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
+2. Run with Docker Compose:
+   ```
+   docker-compose up
+   ```
 
-#### Frontend
-```bash
-cd frontend
-npm install
-npm start
-```
+3. Access the application at http://localhost:8000
 
-## Project Structure
+### Branches
 
-```
-dragon-soul-loot/
-├── app/                    # FastAPI backend
-│   ├── api/               # API routes
-│   ├── models/            # Data models
-│   ├── services/          # Business logic
-│   └── websockets/        # WebSocket handlers
-├── frontend/              # React frontend
-├── data/                  # Data files
-└── tests/                 # Test suite
-```
+- `main`: Production-ready code deployed to Cloud Run
+- `development`: Development branch with the latest features
+
+## Deployment
+
+The application is automatically deployed to Google Cloud Run when changes are pushed to the main branch.
+
+### Manual Deployment
+
+1. Build the Docker image:
+   ```
+   docker build -t honor-guard-loot-tracker .
+   ```
+
+2. Run the container:
+   ```
+   docker run -p 8000:8000 honor-guard-loot-tracker
+   ```
 
 ## Contributing
 
-1. Create a feature branch
-2. Make your changes
-3. Submit a pull request
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-MIT License
+This project is licensed under the MIT License - see the LICENSE file for details.
 
