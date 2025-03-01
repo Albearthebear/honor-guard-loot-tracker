@@ -97,10 +97,11 @@ class DragonSoulLootAnalyzer:
         self.healers = set()
         
         # Priority calculation weights - TWEAKABLE VARIABLES
-        self.attendance_weight = 0.55     # How much attendance affects priority score
-        self.item_penalty_multiplier = 55    # Base multiplier for item penalties
-        self.token_penalty_reduction = 0.75   # Tokens count as 50% of a regular item for penalties
-        self.raid_25_percent_bonus = 0   # 25% bonus for 25-man raid attendance
+        self.attendance_weight = 10  # How many points per boss attended
+        self.base_loot_penalty = 35   # Base multiplier for item penalties
+        self.token_penalty_reduction = 0.4   # Tokens count as 50% of a regular item for penalties
+        self.healer_penalty_reduction = 0.05  # 5% penalty reduction for healers
+        self.tank_penalty_reduction = 0.075   # 7.5% penalty reduction for tanks
         
         # Initialize item categorization system
         self.initialize_item_categorization()
@@ -558,49 +559,15 @@ class DragonSoulLootAnalyzer:
     
     def calculate_attendance(self):
         """Calculate attendance percentage for each player based on boss kills"""
-        attendance_percentage = {}
+        attendance_score = {}
         
         for player, bosses_attended in self.player_boss_attendance.items():
             # Calculate raw attendance
-            base_attendance = (bosses_attended / self.total_bosses) * 100
+            base_attendance = bosses_attended * self.attendance_weight
             
-            # Apply 25-man bonus if applicable
-            if "25" in self.player_raid_size.get(player, set()):
-                # Track 25-man bosses where player was present
-                player_25man_bosses = 0
-                total_25man_bosses = 0
-                
-                # First count total 25-man bosses
-                for filename, _ in self.raid_participants:
-                    if "25man" in filename:
-                        for pattern, count in self.file_to_bosses.items():
-                            if pattern in filename:
-                                total_25man_bosses += count
-                                break
-                
-                # Then count which ones player attended
-                for filename, participants_df in self.raid_participants:
-                    if "25man" in filename:
-                        for _, row in participants_df.iterrows():
-                            player_name, _ = self.extract_player_info(row)
-                            if player_name == player:
-                                # Count bosses for this raid
-                                for pattern, count in self.file_to_bosses.items():
-                                    if pattern in filename:
-                                        player_25man_bosses += count
-                                        break
-                                break
-                
-                # Apply bonus proportionally to player's 25-man attendance
-                if total_25man_bosses > 0:
-                    bonus_portion = player_25man_bosses / total_25man_bosses
-                    attendance_percentage[player] = base_attendance * (1 + (self.raid_25_percent_bonus * bonus_portion))
-                else:
-                    attendance_percentage[player] = base_attendance
-            else:
-                attendance_percentage[player] = base_attendance
+            attendance_score[player] = base_attendance
             
-        return attendance_percentage
+        return attendance_score
     
     def calculate_loot_per_boss(self):
         """Calculate loot received per boss attended for each player"""
@@ -646,8 +613,8 @@ class DragonSoulLootAnalyzer:
         
         for player in all_known_players:
             if player in self.player_boss_attendance and not self.is_pug(player):
-                # Base priority comes from attendance
-                attendance_score = attendance.get(player, 0) * self.attendance_weight
+                # Base priority comes from attendance - NO NEED TO MULTIPLY AGAIN
+                attendance_score = attendance.get(player, 0)
                 
                 # Count bosses attended with 25-man scaling
                 bosses_attended = max(1, self.player_boss_attendance.get(player, 1))
@@ -672,7 +639,7 @@ class DragonSoulLootAnalyzer:
                             token_slot_multiplier = slot_multiplier
                         
                         # Calculate base penalty for this slot
-                        base_slot_penalty = (count / bosses_attended) * self.item_penalty_multiplier
+                        base_slot_penalty = self.base_loot_penalty
                         
                         # Apply slot weighting
                         weighted_slot_penalty = base_slot_penalty * slot_multiplier
@@ -684,36 +651,21 @@ class DragonSoulLootAnalyzer:
                             token_item_penalty += weighted_token_slot_penalty
                         else:
                             regular_item_penalty += weighted_slot_penalty
+            
+                # Apply role-based penalty reductions
+                penalty_modifier = 1.0  # Default - no reduction
+                if player in self.healers:
+                    penalty_modifier = 1.0 - self.healer_penalty_reduction  # 5% reduction
+                elif self.player_info.get(player, {}).get('Role') in ['Main Tank', 'Offtank']:
+                    penalty_modifier = 1.0 - self.tank_penalty_reduction  # 7.5% reduction
                 
-                # Calculate raid size bonus
-                raid_size_bonus = 0
-                if "25" in self.player_raid_size.get(player, set()):
-                    # Count how many bosses were done in 25-man
-                    twenty_five_man_bosses = 0
-                    for filename, participants_df in self.raid_participants:
-                        if "25man" in filename:
-                            # Check if player was in this raid
-                            player_in_raid = False
-                            for _, row in participants_df.iterrows():
-                                player_name, _ = self.extract_player_info(row)
-                                if player_name == player:
-                                    player_in_raid = True
-                                    break
-                                    
-                            if player_in_raid:
-                                # Count bosses
-                                for pattern, count in self.file_to_bosses.items():
-                                    if pattern in filename:
-                                        twenty_five_man_bosses += count
-                                        break
-                    
-                    # Apply bonus proportionally to 25-man attendance
-                    bonus_portion = twenty_five_man_bosses / self.total_bosses
-                    raid_size_bonus = attendance_score * (self.raid_25_percent_bonus * bonus_portion)
+                # Apply the penalty modifier
+                regular_item_penalty *= penalty_modifier
+                token_item_penalty *= penalty_modifier
                 
                 # Calculate final priority scores
-                regular_score = attendance_score - regular_item_penalty - (token_item_penalty * self.token_penalty_reduction) + raid_size_bonus
-                token_score = attendance_score - token_item_penalty - (regular_item_penalty * self.token_penalty_reduction) + raid_size_bonus
+                regular_score = attendance_score - regular_item_penalty - (token_item_penalty * self.token_penalty_reduction)     
+                token_score = attendance_score - token_item_penalty - (regular_item_penalty * self.token_penalty_reduction)
                 
                 # Store both scores
                 regular_priority_scores[player] = regular_score
@@ -998,25 +950,20 @@ class DragonSoulLootAnalyzer:
         recommendations = []
         
         # High priority recommendations
-        if overall_rank <= 3:
+        if overall_rank <= 2:
             recommendations.append("HIGH PRIORITY for next suitable item")
-        elif overall_rank <= 5:
+        elif overall_rank <= 4:
             recommendations.append("Priority candidate for loot")
 
         # Token-specific recommendations
         if token_rank <= 2:
             recommendations.append(f"HIGH PRIORITY for {player_data['Token']} tokens")
-        
-        # Attendance-based recommendations
-        attendance = float(player_data['Attendance'].rstrip('%'))
-        if attendance >= 87.5:
-            recommendations.append("Excellent attendance")
 
         # Items per boss recommendations
         items_per_boss = float(player_data['Items Per Boss'])
         if items_per_boss < 0.2:
             recommendations.append("Due for loot")
-        elif items_per_boss > 0.8:
+        elif items_per_boss > 0.6:
             recommendations.append("Recently received multiple items")
 
         return " | ".join(recommendations) if recommendations else "Standard priority"
