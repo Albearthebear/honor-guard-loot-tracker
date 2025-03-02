@@ -17,11 +17,8 @@ COPY run.py .
 ENV PYTHONPATH=/app
 ENV PORT=8080
 
-# Process data during build
-RUN python -c "from app.process_data import main; main()"
-
 # Expose the port that Cloud Run will use
-EXPOSE 8080
+EXPOSE ${PORT}
 
-# Run the application
-CMD exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT} 
+# Run the application using run.py
+CMD python run.py --host 0.0.0.0 --port ${PORT} --process-data 
