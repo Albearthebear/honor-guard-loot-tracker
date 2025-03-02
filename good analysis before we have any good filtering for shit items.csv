@@ -1,0 +1,23 @@
+Player Name,Class,Spec,Role,Token Type,Primary Stat,Is Healer,Overall Rank,Token Rank,Stat Rank,Role Rank,Attendance %,Bosses Attended,Raid Sizes,Total Items,Items Per Boss,Token Items,Priority Score,Token Priority Score,Item Slots Distribution,Recommendation
+Ðelusive,Rogue,Combat,DPS,Vanquisher,Agility,No,1,1,1,1,70.0%,7,"10, 25",0,0.00,0,70.0,70.0,,HIGH PRIORITY for next suitable item | HIGH PRIORITY for Vanquisher tokens | Due for loot
+bestdk,DK,Frost,DPS,Vanquisher,Strength,No,2,2,1,2,70.0%,7,"10, 25",0,0.00,0,70.0,70.0,,HIGH PRIORITY for next suitable item | HIGH PRIORITY for Vanquisher tokens | Due for loot
+Sowzz,Hunter,Survival,DPS,Protector,Agility,No,3,1,2,3,60.0%,6,"10, 25",1,0.17,0,60.0,60.0,,Priority candidate for loot | HIGH PRIORITY for Protector tokens | Due for loot
+ricardo,Warrior,Arms,DPS,Protector,Strength,No,4,3,2,4,80.0%,8,"10, 25",1,0.12,1,59.0,27.5,chest:1,Priority candidate for loot | Due for loot
+falkeblikk,Hunter,Survival,DPS,Protector,Agility,No,5,2,3,5,50.0%,5,"10, 25",0,0.00,0,50.0,50.0,,HIGH PRIORITY for Protector tokens | Due for loot
+vallock,Warlock,Affliction,DPS,Conqueror,Intellect,No,6,1,1,6,50.0%,5,"10, 25",0,0.00,0,50.0,50.0,,HIGH PRIORITY for Conqueror tokens | Due for loot
+woopstab,Rogue,Combat,DPS,Vanquisher,Agility,No,7,3,4,7,50.0%,5,"10, 25",0,0.00,0,50.0,50.0,,Due for loot
+copro,Mage,Fire,DPS,Vanquisher,Intellect,No,8,8,2,8,50.0%,5,"10, 25",1,0.20,1,31.8,4.5,hands:1,Standard priority
+jayli,Mage,Fire,DPS,Vanquisher,Intellect,No,9,9,3,9,50.0%,5,"10, 25",1,0.20,0,31.8,4.5,shoulder:1,Standard priority
+nicegaff,Paladin,Holy,Healer,Conqueror,Intellect,Yes,10,4,4,1,80.0%,8,"10, 25",2,0.25,1,26.8,16.8,"necklace:1, chest:1",Standard priority
+Rùskøv,Druid,Feral,DPS,Vanquisher,Agility,No,11,4,5,10,60.0%,6,"10, 25",1,0.17,0,25.0,46.0,two-hand:1,Due for loot
+imlegalqt,Shaman,Enhancement,DPS,Protector,Agility,No,12,4,6,11,80.0%,8,"10, 25",2,0.25,1,24.0,13.5,"legs:1, held in off-hand:1",Standard priority
+saokipriest,Priest,Discipline,Healer,Conqueror,Intellect,Yes,13,5,5,2,80.0%,8,"10, 25",2,0.25,1,20.1,14.2,"legs:1, off-hand:1",Standard priority
+overdeath,DK,Blood,Main Tank,Vanquisher,Strength,No,14,7,3,1,50.0%,5,"10, 25",1,0.20,0,11.1,34.5,waist:1,Standard priority
+milka,Priest,Shadow,DPS,Conqueror,Intellect,No,15,6,6,12,10.0%,1,10,0,0.00,0,10.0,10.0,,Due for loot
+dankovich,Priest,Discipline,Healer,Conqueror,Intellect,Yes,16,3,7,3,50.0%,5,"10, 25",1,0.20,0,0.1,30.0,trinket:1,Standard priority
+sanddiglett,Paladin,Retribution,DPS,Conqueror,Strength,No,17,2,4,13,70.0%,7,"10, 25",2,0.29,0,-3.5,40.6,"shield:1, wrist:1",HIGH PRIORITY for Conqueror tokens
+dreamypie,Paladin,Holy,Healer,Conqueror,Intellect,Yes,18,7,8,4,50.0%,5,"10, 25",2,0.40,1,-3.9,-7.9,"wrist:1, shoulder:1",Standard priority
+albear,Druid,Feral,Offtank,Vanquisher,Agility,No,19,5,7,1,80.0%,8,"10, 25",2,0.25,0,-7.4,45.0,"feet:1, trinket:1",Standard priority
+moruse,Druid,Balance,DPS,Vanquisher,Intellect,No,20,6,9,14,80.0%,8,"10, 25",3,0.38,0,-7.5,45.0,"finger:1, trinket:1",Standard priority
+borran,Shaman,Elemental,DPS,Protector,Intellect,No,21,6,10,15,80.0%,8,"10, 25",4,0.50,3,-12.4,-77.5,"head:1, finger:1, hands:1, shoulder:1",Standard priority
+Pepsícola,Warrior,Arms,DPS,Protector,Strength,No,22,5,5,16,50.0%,5,"10, 25",2,0.40,1,-20.7,-16.5,"hands:1, trinket:1",Standard priority
