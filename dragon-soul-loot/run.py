@@ -2,7 +2,7 @@
 """
 Run script for Dragon Soul Loot Manager
 
-This script runs the FastAPI application with uvicorn.
+This script runs the FastAPI application with uvicorn
 """
 
 import os
