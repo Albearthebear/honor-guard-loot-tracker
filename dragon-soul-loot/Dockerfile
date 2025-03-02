@@ -6,7 +6,7 @@ WORKDIR /app
 COPY app/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application
+# Copy the application code
 COPY app/ ./app/
 COPY static/ ./static/
 COPY data/ ./data/
@@ -15,10 +15,13 @@ COPY run.py .
 
 # Set environment variables
 ENV PYTHONPATH=/app
-ENV PORT=8000
+ENV PORT=8080
 
-# Expose the port
-EXPOSE 8000
+# Process data during build
+RUN python -c "from app.process_data import main; main()"
+
+# Expose the port that Cloud Run will use
+EXPOSE 8080
 
 # Run the application
-CMD ["python", "run.py", "--host", "0.0.0.0", "--port", "8000", "--process-data"] 
+CMD exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT} 
